@@ -1,4 +1,6 @@
 # Master-Data-Science
 Hola que tal
 No hay trampa
-Otro cambio
+<<<<<<< HEAD
+
+Aquí va a haber un conflicto arreglado

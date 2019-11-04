@@ -1,6 +1,3 @@
 # Master-Data-Science
-Hola que tal
-No hay trampa
+Este repositorio contendrá todos los contenidos que se desarrollen a lo largo del curso y que puedan ser útiles como portfolio
 
-
-Aquí va a haber un conflicto arreglado

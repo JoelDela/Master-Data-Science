@@ -1,0 +1,4 @@
+Para los datos descargados con el proceso de scraping extraiga con la API de google:
+
+1) La geolocalización.
+2) La distancia al banco más cercano para una latitud y longitud dadas.

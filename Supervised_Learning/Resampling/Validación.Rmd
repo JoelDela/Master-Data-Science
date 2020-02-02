@@ -1,0 +1,173 @@
+---
+title: "Validación"
+author: "Joel de la Cruz Fuertes"
+date: "Enero de 2020"
+output: 
+  html_document: 
+    theme: cerulean
+---
+
+```{r}
+install.packages('caret')
+```
+
+
+```{r}
+rm(list=ls())
+gc()
+library(caret)
+```
+
+
+Considera el dataset “Auto” (puedes cargarlo del fichero .csv que usamos el otro día en clase o desde el paquete “ISLR”). El objetivo de este ejercicio emplear cross-validation para comparar el rendimiento de los siguientes modelos lineales: 
+  - mpg ~ horsepower. 
+  - mpg ~ horsepower + horsepower^2. 
+  - mpg ~ horsepower + horsepower^2 + horsepower^3. 
+
+```{r}
+autos <- read.csv('auto.csv',sep=';',header=T)
+str(autos)
+
+pairs(autos,col='blue')
+```
+
+1. Utilizando un 70% de las observaciones como muestra de training y el 30% restante como muestra de validación, ajusta los tres modelos anteriores y calcula su MSE, tanto sobre la muestra de entrenamiento como sobre la de test. Repite este proceso diez veces. ¿Qué observas? ¿Cuál de los tres modelos anteriores elegirías? 
+
+
+```{r}
+# Si queremos hacer la selección de forma manual
+prop_training=0.7
+
+ix_training=round(length(autos$mpg)*prop_training)
+set.seed(42)
+
+x1 <- sample(1:nrow(autos),ix_training,replace=F)
+autos70=autos[x1,]
+
+```
+
+```{r}
+# Para hacerlo con 'caret' de forma que las filas que coja sean totalmente aleatorias:
+prop_training=0.7
+n_iter=10
+set.seed(42)
+
+train_index_list=createDataPartition(1:nrow(autos),p=prop_training,times=n_iter)
+str(train_index_list)
+```
+```{r}
+mat <- matrix(nrow=0,ncol=6)
+colnames(mat)<-c('mse_train_1','mse_test_1','mse_train_2','mse_test_2','mse_train_3','mse_test_3')
+```
+
+Aplicamos LGOCV (Leave-Group-Out-Cross_validation):
+
+```{r}
+for(train_index in train_index_list){
+  training_data = autos[train_index,] #ya que train_index_list es una lista de listas
+  test_data <- autos[-train_index,]
+  modelo1 <- lm(mpg ~ horsepower,data=training_data)
+  modelo2 <- lm(mpg ~ horsepower+I(horsepower^2),data=training_data)
+  modelo3 <- lm(mpg ~ horsepower+I(horsepower^2)+I(horsepower^3),data=training_data)
+  mse_train_1 <- mean((training_data$mpg-modelo1$fitted.values)^2)# También se podría hacer accediendo a los residuos
+  mse_train_2 <- mean((modelo2$residuals)^2)                      # mediante modelon$residuals
+  mse_train_3 <- mean((training_data$mpg-modelo3$fitted.values)^2)
+  mse_test_1 <- mean((test_data$mpg - predict(modelo1, test_data))^2)
+  mse_test_2 <- mean((test_data$mpg - predict(modelo2, test_data))^2)
+  mse_test_3 <- mean((test_data$mpg - predict(modelo3, test_data))^2)
+  mat <- rbind(mat,c(mse_train_1,mse_test_1,mse_train_2,mse_test_2,mse_train_3,mse_test_3))
+}
+
+mat <- as.data.frame(mat)
+mat
+
+colMeans(mat)
+
+apply(mat, 2, sd)
+```
+
+Observamos que el error CUADRÁTICO medio está bastante bien. Para poder compararlo con los datos reales habría que hacer la raíz del mse. Pero en general se ve bien. 
+
+
+2. Emplea ahora LOOCV: leave-one-out cross-validation para responder a las mismas preguntas que en el ejercicio anterior.
+
+Consiste en dejar una única observación fuera y hacer un train con el resto
+
+```{r}
+# Se podría hacer sobre solo el dataset de train pero lo vamos a ejectuar sobre todo por sencillez
+arr_1 <- c()
+arr_2 <- c()
+arr_3 <- c()
+
+for(i in 1:nrow(autos)){
+  modelo1 <- lm(mpg ~ horsepower,data=autos[-i,])
+  modelo2 <- lm(mpg ~ horsepower+I(horsepower^2),data=autos[-i,])
+  modelo3 <- lm(mpg ~ horsepower+I(horsepower^2)+I(horsepower^3),data=autos[-i,])
+  arr_1 <- c(arr_1, (autos$mpg[i]-predict(modelo1, autos[i,]))^2)
+  arr_2 <- c(arr_2, (autos$mpg[i]-predict(modelo2, autos[i,]))^2)
+  arr_3 <- c(arr_3, (autos$mpg[i]-predict(modelo3, autos[i,]))^2)
+}
+
+mean(arr_1)
+mean(arr_2)
+mean(arr_3)
+sd(arr_1)
+sd(arr_2)
+sd(arr_3)
+```
+
+
+3. Aprovecha los resultados del ejercicio 1 para estimar el MSE de training y test por leave-groupout cross-validation. 
+
+```{r}
+mat
+```
+
+
+4. Implementa la estrategia de k-fold cross-validation para valores de k = 3, 5, 7 y 10. Compara los resultados y responde, de nuevo, a las preguntas del ejercicio 1. 
+
+
+```{r}
+fold_index_list <- createFolds(autos$mpg,k=3)
+lapply(fold_index_list, length) # check. Como la longitud del dataset no es divisible por 10 
+# los folds no tienen todos exactamente el mismo número de elementos
+
+```
+
+```{r}
+mat <- matrix(nrow = 0, ncol = 6)
+colnames(mat) <- c('mse_train_1', 'mse_test_1', 'mse_train_2', 'mse_test_2', 'mse_train_3', 'mse_test_3')
+for(fold in fold_index_list){  # for(i in 1:10) { # si caret no funciona
+  training_data <- autos[-fold, ] # autos[autos$fold != i, ] # si caret no funciona
+  test_data <- autos[fold, ] # autos[autos$fold == i,] # si caret no funciona
+  mod_1 <- lm(mpg ~ horsepower, data = training_data)
+  mod_2 <- lm(mpg ~ horsepower + I(horsepower^2), data = training_data)
+  mod_3 <- lm(mpg ~ horsepower + I(horsepower^2) + I(horsepower^3), data = training_data)
+  mse_train_1 <- mean((mod_1$residuals)**2) # mean((training_data$mpg - mod_1$fitted.values)**2)
+  mse_train_2 <- mean((mod_2$residuals)**2) # mean((training_data$mpg - mod_2$fitted.values)**2)
+  mse_train_3 <- mean((mod_3$residuals)**2) # mean((training_data$mpg - mod_3$fitted.values)**2)
+  mse_test_1 <- mean((test_data$mpg - predict(mod_1, test_data))**2)
+  mse_test_2 <- mean((test_data$mpg - predict(mod_2, test_data))**2)
+  mse_test_3 <- mean((test_data$mpg - predict(mod_3, test_data))**2)
+  mat <- rbind(mat, c(mse_train_1,
+                      mse_test_1,
+                      mse_train_2,
+                      mse_test_2,
+                      mse_train_3,
+                      mse_test_3))
+}
+mat <- as.data.frame(mat)
+mat
+colMeans(mat)
+
+apply(mat, 2, sd)
+```
+
+
+5. Globalmente, ¿qué conclusiones extraes?
+
+
+
+
+
+

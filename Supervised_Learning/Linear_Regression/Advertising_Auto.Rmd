@@ -1,0 +1,335 @@
+---
+title: "Regresión lineal"
+author: "Mario Encinar"
+output: html_document
+---
+
+# Instrucciones para ajustar modelos lineales en R
+
+La instrucción para ajustar un modelo lineal en R es ``lm``:
+
+``lm(formula, data, subset, weights, ...)``
+
+donde 
+
+- ``formula`` es una descripción simbólica del modelo que se pretende ajustar.
+- ``data`` es un <i>data frame</i> que contiene los datos con los que se pretende ajustar el modelo.
+- ``subset`` es un vector opcional que especifica el subconjunto de observaciones que se van a usar en el proceso de ajuste.
+- ``weights`` es un vector opcional de pesos que se van a usar en el proceso de ajuste del modelo. Por defecto ``weights=NULL``, indicando que el ajuste se realizará por mínimos cuadrados ordinarios, y, en caso contrario, si se pasa un vector $w = (w_1, \dots, w_n)$, la función que se minimiza en el ajuste del modelo es el $MSE$ ponderado por $W$, es decir,
+$$
+MSE_w = \sum_{i=1}^{n} w_i e_i^2.
+$$
+
+# El dataset ``Advertising``
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+advertising <- read.csv('advertising.csv', sep = ';', header = T, fileEncoding = 'utf-8')
+glimpse(advertising)
+```
+
+```{r}
+summary(advertising)
+```
+
+# Diagramas de dispersión por pares
+
+```{r, fig.align='center'}
+pairs(advertising, col = 'red')
+```
+
+
+# Ajuste de un modelo lineal simple
+
+``Sales`` frente a ``TV``:
+
+```{r}
+lm_fit_sales_TV <- lm(Sales ~ TV, data = advertising)
+
+lm_fit_sales_TV
+```
+
+El modelo es
+
+$$
+Sales = 7.03259 + 0.04754\cdot TV
+$$
+
+
+```{r}
+summary(lm_fit_sales_TV)
+```
+
+```{r}
+names(lm_fit_sales_TV)
+```
+
+
+Se pueden obtener intervalos de confianza para los coeficientes
+
+```{r}
+confint(lm_fit_sales_TV, level = 0.95)
+```
+
+y se pueden hacer predicciones para datos nuevos
+
+```{r}
+new_advertising = data.frame(TV = c(100, 150, 200, 250))
+predicted_values <- predict(lm_fit_sales_TV, new_advertising, interval = 'confidence')
+new_advertising <- cbind(new_advertising, predicted_values)
+new_advertising
+```
+
+
+Podemos representar gráficamente el modelo sobre los datos de entrenamiento:
+
+```{r, fig.align='center'}
+plot(advertising$TV, advertising$Sales, type = 'p', col = 'red', xlab = 'TV', ylab = 'Residuals')
+abline(lm_fit_sales_TV, col = 'blue')
+```
+
+
+Por último, también podemos representar gráficamente los residuos del modelo:
+
+```{r, out.width = 750, out.height = 750, fig.align='center'}
+plot(advertising$TV, lm_fit_sales_TV$residuals, type = 'p', col = 'red', xlab = 'TV', ylab = 'Sales')
+```
+
+<b>Ejercicio: </b>Considera el dataset ``Auto``, que tienes disponible en el fichero ``auto.csv`` (puedes encontrar la descripción del dataset en la segunda página de <a href="https://cran.r-project.org/web/packages/ISLR/ISLR.pdf">esto</a>).
+
+- Ajusta un modelo lineal de ``mpg`` frente a ``horsepower`` y comenta los resultados. Por ejemplo:
+
+```{r}
+Auto <- read.csv('auto.csv',sep = ";")
+
+attach(Auto)
+
+lm_fit <- lm(mpg ~ horsepower)
+```
+
+
+- ¿Existe relación entre el predictor y la respuesta?
+
+A priori la correlación entre predictor y respuesta es alta:
+
+```{r}
+cor(horsepower, mpg)
+```
+
+Según el primer modelo:
+
+```{r}
+summary(lm_fit)
+```
+  
+  El coeficiente que va con `horsepower` es estadísticamente significativo (como el *p-valor* es muy pequeño rechazamos la hipótesis nula de que el coeficiente sea cero), luego existe relación entre el predictor y la respuesta `mpg`. 
+  
+  - ¿Cómo de fuerte es esa relación?
+  
+  Según el valor del coeficiente de la regresión, por cada unidad de `horsepower`, la respuesta `mpg` decrece en `r sprintf("%.3f", lm_fit$coefficients[2])` unidades.
+  
+  - ¿Es la relación entre el predictor y la respuesta positiva o negativa?
+  
+  Negativa.
+  
+  - ¿Cuál es el ``mpg`` predicho para un ``horsepower`` de 98? Da un intervalo de confianza del 99% para ese valor.
+  
+```{r}
+new_hp <- data.frame(horsepower = 98)
+
+predicted_values <- predict(lm_fit, new_hp, interval = 'confidence', level = 0.99)
+predicted_values
+```
+  
+  
+- Representa gráficamente la respuesta y el predictor, así como el modelo que has ajustado.
+
+```{r}
+plot(horsepower, mpg, type = 'p', col = 'red')
+abline(lm_fit, col = 'blue')
+```
+
+- Representa gráficamente los residuos del modelo y comenta posibles problemas que puedas encontrar.
+
+```{r}
+plot(lm_fit)
+```
+
+No tienen media cero, ni varianza constante y se desvían de una distribución normal. Existe dependencia de los residuos con la variable respuesta o los valores estimados de la misma. Todo esto indica que el modelo no es adecuado, por simplicidad o falta de información sobre la variable respuesta.  
+
+- Intenta otro tipo de análisis en busca de algún insight <i>sorprendente</i>.
+
+Complicamos el modelo. Podemos linealizar la dependencia entre `mpg` y `horsepower`, dado que ya la gráfica mostraba que su relación era más compleja. Recuérdese que **la hipótesis de linealidad debe cumplirse siempre en los parámetros de la regresión pero se puede realizar cualquier tipo de transformación previa sobre las variables**. Aplicar logaritmos es una manera general de linealizar:
+
+```{r}
+log_hp <- log(horsepower)
+log_mpg <- log(mpg)
+```
+
+```{r}
+lm_fit_log <- lm(log_mpg ~ log_hp)
+summary(lm_fit_log)
+```
+
+El $R^2$ mejora respecto al anterior modelo. Representamos los datos y el modelo ajustado:
+
+```{r}
+plot(log_hp, log_mpg, type = 'p', col = 'red')
+abline(lm_fit_log, col = 'blue')
+```
+
+Ahora el valor predicho de `horsepower = 98` se determina según:
+
+```{r}
+new_hp <- data.frame(log_hp = log(98))
+
+predicted_values <- predict(lm_fit_log, new_hp, interval = 'confidence', level = 0.99)
+exp(predicted_values)
+```
+
+Estudiamos los residuos:
+
+```{r}
+plot(lm_fit_log)
+```
+
+
+Los residuos se pueden considerar más parecidos a los hipotéticos: con media cero, homocedásticos y distribuidos según una normal (salvo *outliers*).
+
+
+# Ajuste de un modelo lineal múltiple
+
+Para ajustar un modelo de regresión lineal múltiple, la instrucción que se emplea es la misma que en el caso univariante, pero en la fórmula se han de especificar todas las variables que se pretenden considerar, separadas por un ``+``. Así, para ajustar un modelo de ``Sales`` frente a ``TV``, ``Radio`` y ``Newspaper`` hacemos
+
+```{r}
+lm_fit_sales_all <- lm(Sales ~ TV + Radio + Newspaper, data = advertising)
+summary(lm_fit_sales_all)
+```
+
+El modelo que se obtiene es
+
+$$
+Sales = 2.938889 + 0.045765\cdot TV + 0.188530 \cdot Radio - 0.001037 \cdot Newspaper
+$$
+
+Una llamada equivalente a la que hemos hecho sería 
+```{r}
+lm_fit_sales_all <- lm(Sales ~ ., data = advertising)
+```
+ya que el punto quiere decir "todas las demás variables". Si quieren quitarse variables, se utiliza un ``-``. Así, una forma de ajustar un modelo de ``Sales`` frente a ``TV`` y ``Radio`` sería
+```{r}
+lm_fit_sales_TV_Radio <- lm(Sales ~ . - Newspaper, data = advertising)
+```
+
+
+```{r}
+summary(lm_fit_sales_TV_Radio)
+```
+
+Cuando hay más de un predictor, el análisis gráfico del modelo es diferente (ya que las representaciones en más de dos dimensiones suelen ser difíciles de leer). En este caso, representamos valores reales frente a predichos y residuos frente a valores reales:
+
+```{r, fig.align='center'}
+par(mfrow = c(1,2))
+
+plot(advertising$Sales, lm_fit_sales_TV_Radio$fitted.values, type = 'p', col = 'red', xlab = 'Sales', ylab = 'Predicted Sales')
+plot(advertising$Sales, lm_fit_sales_TV_Radio$residuals, type = 'p', col = 'red', xlab = 'Sales', ylab = 'Residuals')
+```
+
+<b>Ejercicio: </b>Sobre el dataset ``Auto`` de antes:
+
+- Realiza un análisis exploratorio sencillo.
+
+```{r}
+library(DescTools)
+
+Desc(Auto)
+```
+
+
+- Representa diagramas de dispersión de todos los pares de variables numéricas. Calcula la matriz de correlaciones. A priori, ¿piensas que tiene sentido ajustar un modelo lineal de ``mpg`` frente al resto de variables, o frente a algunas de ellas?
+
+```{r}
+Auto.num <- Auto[,-which(colnames(Auto) == 'name')]
+pairs(Auto.num)
+```
+
+
+```{r}
+cor(Auto.num)
+```
+
+A priori existe cierta dependencia de `mpg` con el resto de variables.
+
+Warning!! Descartaremos `displacement` en la modelización por estar demasiado correlacionada con algunas de las otras variables explicativas.
+
+También descartaremos `name` por simplicidad y generalidad, ya que buscamos un modelo que describa el consumo con características propias objetivas de un automóvil.
+
+Qué ocurre con origin? La obviamos de momento.
+
+- Para confirmar o desmentir tu sospecha, ajusta tal modelo y trata de <i>optimizarlo</i>. 
+
+```{r}
+lm.fit.Auto.all <- lm(mpg ~ . - origin - displacement, Auto.num)
+
+summary(lm.fit.Auto.all)
+```
+
+Descartamos el que tiene el *p.valor* más alto.
+
+Utilizamos la función `update`.
+
+```{r}
+lm.fit.Auto.wyac <- update(lm.fit.Auto.all, . ~ . - horsepower)
+
+summary(lm.fit.Auto.wyac)
+```
+
+De nuevo extraemos del análisis la que tiene *p-valor* más alto.
+
+
+```{r}
+lm.fit.Auto.wya <- update(lm.fit.Auto.wyac, . ~ . - cylinders)
+
+summary(lm.fit.Auto.wya)
+```
+
+Modelo final:
+
+```{r}
+lm.fit.Auto.wy <- lm(mpg ~ weight + year, Auto.num)
+
+summary(lm.fit.Auto.wy)
+```
+
+Responde a las siguientes preguntas:
+  - ¿Existe relación entre los predictores y la respuesta?
+  
+  Hemos reducido el modelo a las variables que tienen relación significativa con la variable de salida en el contexto de una regresión lineal múltiple, partiendo de un escenario con todas las variables explicativas posibles.
+  
+  - ¿Cómo varía la respuesta frente a cada uno de los predictores?
+  
+  La variable `mpg` decrece con `weight` y crece con `year`.
+  
+  - ¿Parecen existir problemas en el ajuste del modelo?
+  
+```{r}
+plot(lm.fit.Auto.wy)
+```
+  
+Los residuos no se comportan como debieran, no tienen media cero, ni varianza constante.
+
+Probemos alguna transformación sobre las variables de entrada. Por ejemplo:
+  
+```{r}
+lm.fit.Auto.1_wy <- lm(mpg ~ I(1/weight) + year, Auto)
+
+summary(lm.fit.Auto.1_wy)
+```
+  
+  Ahora el $R^2$ es mejor que antes.
+  
+```{r}
+plot(lm.fit.Auto.1_wy)
+```
+  
+Se ha mejorado el escenario anterior en cuanto a los chequeos de validez de las hipótesis del modelo de regresión lineal. Se contemplan mejoras aplicando otras transformaciones a las variables.

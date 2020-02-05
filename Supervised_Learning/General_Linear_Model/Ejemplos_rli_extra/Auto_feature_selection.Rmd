@@ -1,0 +1,147 @@
+---
+title: "Regresión Lineal (segunda sesión, ejemplo 1)"
+author: "Mario Encinar"
+output: html_document
+---
+
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(car)
+library(leaps)
+```
+
+
+# Modelo de regresión lineal con el dataset Auto
+
+El objetivo de este ejercicio es ajustar un modelo que permita predecir mpg en términos del resto de variables del set de datos.
+
+```{r}
+Auto <- read.csv('Auto.csv', header = T, sep = ';')
+glimpse(Auto)
+pairs(Auto)
+```
+
+
+```{r}
+for(i in 2:8){
+  plot(Auto[,i], Auto$mpg, type = 'p', col = 'red', xlab = names(Auto)[i], ylab = 'mpg')
+}
+```
+
+
+Se observa que cylinders, origin y name son variables categóricas. Descartamos la última por sencillez. La primera puede tratarse como si fuera numérica, pero no así la segunda.
+
+```{r}
+Auto$origin <- ifelse(Auto$origin == 1, 'American',
+                      ifelse(Auto$origin == 2, 'European', 'Japanese'))
+```
+
+
+## Ajuste de un modelo de regresión lineal
+
+En primer lugar, probamos “best subset selection” para construir un modelo.
+
+```{r}
+exhaustive.model <- regsubsets(mpg ~ . - name, data = Auto)
+
+summary(exhaustive.model)
+```
+
+
+¿Cómo son los R2 en cada caso?
+
+```{r}
+plot(summary(exhaustive.model)$rsq, type = 'l')
+```
+
+
+Por el criterio “del codo”, tiene sentido tomar dos o cuatro variables. Probamos con cuatro (en este caso, resultan ser weight, year y origin).
+
+
+```{r}
+mpg_fit_wyo <- lm(mpg ~ weight + year + origin, data = Auto)
+summary(mpg_fit_wyo)
+```
+
+
+Todas las variables tienen relación significativa con la respuesta. Echamos un vistazo a los residuos:
+
+
+```{r}
+plot(Auto$mpg, mpg_fit_wyo$residuals, col = 'red', xlab = 'mpg', ylab = 'residuals')
+```
+
+Se observa que puede haber una relación no lineal y que podría haber outliers (quizá aquellos puntos con residuo mayor que diez en valor absoluto).
+
+En primer lugar, pintamos un boxplot de los residuos para comprobarlo:
+
+```{r}
+boxplot(mpg_fit_wyo$residuals)
+```
+
+Ahora representamos mpg frente a weight y year para analizar la posible relación no lineal existente:
+
+
+```{r}
+plot(Auto$weight, Auto$mpg, col = 'red', xlab = 'weight', ylab = 'mpg')
+```
+
+```{r}
+plot(Auto$year, Auto$mpg, col = 'red', xlab = 'year', ylab = 'mpg')
+```
+
+
+Probamos a introducir la variable `weight^2` en el modelo. Para no tener que reescribirlo todo, podemos utilizar la función update.
+
+```{r}
+mpg_fit_wyo_weight2 <- update(mpg_fit_wyo, . ~ . + I(weight^2))
+summary(mpg_fit_wyo_weight2)
+```
+
+Esto sugiere que quizá podríamos “refactorizar” la variable origin y distinguir entre coches europeos y no europeos únicamente.
+
+
+```{r}
+Auto$European <- ifelse(Auto$origin == 'European', 1, 0)
+candidate_model <- lm(mpg ~ weight + I(weight^2) + year + European, data = Auto)
+summary(candidate_model)
+```
+
+Analizamos gráficamente el modelo resultante:
+
+```{r}
+plot(Auto$mpg, candidate_model$residuals, col = 'red', xlab = 'mpg', ylab = 'residuals')
+```
+
+Salvo por los outliers (que podrían o no eliminarse), éste es el diagrama de residuos que uno debería esperar.
+
+Estudiamos la presencia de high-leverage points:
+
+```{r}
+plot(hatvalues(candidate_model), col = 'red')
+```
+
+Muy probablemente, la eliminación de los siete puntos con mayor estadístico h mejoraría sensiblemente la bondad de ajuste de nuestro modelo.
+
+Finalmente, estudiamos la colinealidad:
+
+```{r}
+vif(candidate_model)
+```
+
+
+Sorprendentemente, una entre las variables weight y weight2 debe eliminarse, con lo que lo mejor que podemos hacer es volver al modelo que teníamos justo antes de introducir weight2:
+
+```{r}
+summary(mpg_fit_wyo)
+```
+
+
+Estudiamos la colinealidad en éste:
+
+```{r}
+vif(mpg_fit_wyo)
+```
+
+Resulta que no hay colinealidad, así que éste es nuestro modelo final.

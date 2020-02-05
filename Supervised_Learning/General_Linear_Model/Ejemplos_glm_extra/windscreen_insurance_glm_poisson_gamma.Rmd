@@ -1,0 +1,426 @@
+---
+title: "Determinación de la prima de lunas (windscreen dataset) con modelos glm"
+author: "Mario Encinar"
+output: html_document
+---
+
+```{r warning=FALSE, message=FALSE}
+library(data.table)
+library(ggplot2)
+theme_set(theme_bw())
+library(gridExtra)
+library(pROC)
+library(fitdistrplus)
+library(caret)
+```
+
+El set de datos windscreen.csv contiene datos ficticios relativos
+al año 2011 de una aseguradora de automóviles. Concretamente, se trata de una tabla
+donde cada observación corresponde a un asegurado, donde tienes información propia
+del asegurado (edad, ciudad, tipo de coche, etc.), el coste total por siniestros relativos
+a las lunas de su coche (`INCURR_COST`), el número de siniestros de este tipo que ha
+sufrido (`N_CLAIMS`) y su exposición (`EXPOSURE`), es decir, la fracción del año que el
+sujeto ha estado asegurado.
+
+* * * *
+
+a) Realiza un leve análisis exploratorio del set de datos, para formular las hipótesis
+que consideres oportunas acerca de la relación entre los costes generados por cada
+cliente y el resto de variables.
+
+* * * *
+
+```{r}
+windscreen <- fread('windscreen.csv', stringsAsFactors = T)
+str(windscreen)
+summary(windscreen)
+```
+
+Lista de variables, observaciones y estrategias:
+
+- `year` solo tiene un valor. No aporta información histórica, el set de datos es estático.
+
+- `EARNED_PREMIUM` es la prima aquirida (diferente de la prima pura). No debería utilizarse como predictor.
+
+- `INSTALLMENT`: fraccionamiento del pago de las primas: `r unique(windscreen$INSTALLMENT)`. Parece poco razonable fraccionar el pago en `r unique(windscreen$INSTALLMENT)[3]` plazos, que aparece solo un `r sprintf('%.1f', 100*mean(windscreen$INSTALLMENT == 4))`%, así que lo consideramos valor ausente.
+
+- `GENDER`: sexo. Hay tres valores: `r unique(windscreen$GENDER)`. El menos frecuente, `r unique(windscreen$GENDER)[3]`, es marginal, solo aparece un `r sprintf('%.1f', 100*mean(windscreen$GENDER == 8))`% de las veces. Por esta razón lo consideraremos valor ausente. El resto, `r unique(windscreen$GENDER)[1]` y `r unique(windscreen$GENDER)[2]`,  aparecen `r sprintf('%.1f', 100*mean(windscreen$GENDER == 1))`% y un `r sprintf('%.1f', 100*mean(windscreen$GENDER == 2))`%, resp. Si consideramos que hay más conductores hombres que mujeres asegurados, el primero representa a los varones y el segundo a las mujeres.
+
+- `AGE_DRIVER`, edad del conductor principal. Hay un valor (9999) que no puede ser más que missing value.
+
+- `AGE_ADD_DRIVER`, edad del conductor adicional. Mismo valor ausente.
+
+- `AGE_LICENSE`, edad a la que obtuvo la licencia. Ibidem.
+
+- `AGE_VEHICLE`, edad del vehículo. Ibidem.
+
+- `CITIES` Códigos de provincias (españolas): `r unique(windscreen$CITIES)`. El último no existe, luego es missing value. Factor.
+
+- `BRAND_TEXT`, marca del vehículo.
+
+- `HPOWER`, potencia del vehículo, definido por niveles (?): `r unique(windscreen$HPOWER)`. A una variable categórica.
+
+- `FUEL`: Tipo de combustible: `r unique(windscreen$FUEL)`
+
+- `VALUE_VEHICLE`, valor del vehículo. Eliminaremos un claro outlier a un valor muy elevado para evitar problemas en la modelización.
+
+- `POSTCODE`, Código postal. Missing value: 99999. Categórica.
+
+- `N_CLAIMS`, número de siniestros, valores únicos `r unique(windscreen$N_CLAIMS)`, y la mayor parte (`r sprintf('%.1f', 100*mean(windscreen$N_CLAIMS == 0))`%) son `r unique(windscreen$N_CLAIMS)[1]`.
+
+- `INCURR_COST`, coste de siniestralidad.
+
+- `EXPOSURE`, fracción del año que el sujeto ha estado asegurado.
+
+- `ANTPOL`, antigüedad de la poliza(?). 
+
+- `pesopot`, peso/potencia del vehículo. Missing values: 999
+
+- `DES_ZONE2` indica procedencia (comunidad urbana, suburbana o rural) del asegurado: `r unique(windscreen$DES_ZONE2)`. Missing values.
+
+- `DES_ZONE` variable desagregada de la anterior. La agregación no es inmediata. Por simplicidad utilizaremos la más agregada en el análisis.
+
+- `FUEL2`, combustible en dos categorías. Nos quedaremos con esta en el análisis por simplicidad.
+
+
+```{r warning= FALSE}
+windscreen$INSTALLMENT[windscreen$INSTALLMENT == 9] <- NA
+
+windscreen$GENDER[windscreen$GENDER == 8] <- NA
+windscreen$GENDER <- factor(windscreen$GENDER)
+
+windscreen$AGE_DRIVER[windscreen$AGE_DRIVER == 9999] <- NA
+
+windscreen$AGE_ADD_DRIVER[windscreen$AGE_ADD_DRIVER == 9999] <- 0
+
+windscreen$AGE_LICENSE[windscreen$AGE_LICENSE == 9999] <- NA
+
+windscreen$AGE_VEHICLE[windscreen$AGE_VEHICLE == 9999] <- NA
+
+bpa1 <- ggplot(windscreen) + aes(x = 'AGE_DRIVER', y = AGE_DRIVER) + geom_boxplot() + labs (x='', y='') 
+bpa2 <- ggplot(windscreen) + aes(x = 'AGE_LICENSE', y = AGE_LICENSE) + geom_boxplot() + labs (x='', y='') 
+bpa3 <- ggplot(windscreen) + aes(x = 'AGE_VEHICLE', y = AGE_VEHICLE) + geom_boxplot() + labs (x='', y='') 
+grid.arrange(bpa1, bpa2, bpa3, ncol = 3)
+
+windscreen$CITIES[windscreen$CITIES == 99] <- NA
+windscreen$CITIES <- factor(windscreen$CITIES)
+
+windscreen$HPOWER <- factor(windscreen$HPOWER)
+
+windscreen$VALUE_VEHICLE[windscreen$VALUE_VEHICLE > 4e5] <- NA
+
+windscreen$POSTCODE[windscreen$POSTCODE == 99999] <- NA
+windscreen$POSTCODE <- factor(windscreen$POSTCODE)
+
+windscreen$pesopot[windscreen$pesopot == 999] <- NA
+
+windscreen$DES_ZONE2[windscreen$DES_ZONE2 == ''] <- NA
+
+colSums(is.na(windscreen))
+```
+
+
+Estudiaremos la dependencia de las variables a predecir (ver más adelante), que son `INCURR_COST` y `N_CLAIMS`, con las variables categóricas que mayor número de categorías tienen: `BRAND_TEXT`, `CITIES` (no utilizaremos `POSTCODE` por ser demasiado específica). Agrupamos y pintamos:
+
+```{r  warning = FALSE}
+gr.claims.cit <- windscreen[, .(Avg_claims = mean(N_CLAIMS, na.rm = T)), by = CITIES]
+gr.claims.brand <- windscreen[, .(Avg_claims = mean(N_CLAIMS, na.rm = T)), by = BRAND_TEXT] 
+ggplot(gr.claims.cit) + aes(x = CITIES, y = Avg_claims) + geom_bar(stat = 'Identity') +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+ggplot(gr.claims.brand) + aes(x = BRAND_TEXT, y = Avg_claims) + geom_bar(stat = 'Identity') + 
+  scale_x_discrete(labels = abbreviate) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+gr.cost.cit <- windscreen[N_CLAIMS != 0 , .(Avg_cost = mean(INCURR_COST/N_CLAIMS, na.rm = T)), 
+                          by = CITIES] 
+gr.cost.brand <- windscreen[N_CLAIMS != 0, .(Avg_cost = mean(INCURR_COST/N_CLAIMS, na.rm = T)), 
+                            by = BRAND_TEXT]
+ggplot(gr.cost.cit) + aes(x = CITIES, y = Avg_cost) + geom_bar(stat = 'Identity') +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+ggplot(gr.cost.brand) + aes(x = BRAND_TEXT, y = Avg_cost) + geom_bar(stat = 'Identity') + scale_x_discrete(labels = abbreviate) + theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+Lo único reseñable de los anteriores gráficos es que el número de siniestros promedio es especialmente alto para las marcas `'GME', 'ISUZU', 'IVECO PEGASO', 'MCC', 'PEGASO', 'SUZUKI-SANTANA'`, construimos una variable binaria que discrimine si el vehículo pertenece a estas marcas. Respecto a `CITIES` no vemos diferencias importantes en estas variables objetivo, así que no la utilizaremos en el análisis.
+
+```{r}
+windscreen$SPECIAL_BRAND <- windscreen$BRAND_TEXT %in% c('GME', 'ISUZU',  'IVECO-PEGASO', 'MCC', 'PEGASO', 'SUZUKI-SANTANA')
+# windscreen$SPECIAL_BRAND <- windscreen$BRAND_TEXT %in% c('GME', 'MCC', 'PEGASO', 'SUZUKI-SANTANA')
+```
+
+Correlaciones entre variables numéricas:
+
+```{r}
+cor(windscreen[,c(3, 5:8, 13, 15:19)], use="pairwise.complete.obs")
+```
+
+La edad del conductor y el tiempo de licencia están fuertemente correlacionados (posiblemente solo sea necesario incluir una variable en el análisis). Los costes incurridos y el número de reclamaciones están también relacionadas, evidentemente. Por lo demás no hay correlaciones entre las variables predictoras.
+
+
+* * * *
+
+b) Determina la *prima pura conservadora* desde el punto de vista de la aseguradora.
+
+* * * *
+
+La forma más conservadora de establecer la prima pura para el año entrante sería simplemente establecer la misma para todos los clientes e igual al gasto medio por póliza:
+
+```{r}
+prima_pura_conservadora <- sum(windscreen$INCURR_COST)/nrow(windscreen)
+prima_pura_conservadora
+```
+
+Esta definición implica que los clientes actuales de la aseguradora asumirán el total de los gastos incurridos. 
+
+Otra opción supone pesar las pólizas por su exposición, suponiendo que cada póliza no vale lo mismo, y definir:
+
+```{r}
+prima_pura_conservadora_exposicion <- sum(windscreen$INCURR_COST)/sum(windscreen$EXPOSURE)
+```
+
+Esta definición es mucho más conservadora (es mayor) pero utilizaremos la primera porque es más sencilla e interpretable.
+
+* * * *
+
+c) Ajusta (y optimiza) algún modelo más sofisticado para determinar la prima pura
+más justa para cada asegurado, y compara su rendimiento con el que ofrecería
+esa *prima pura conservadora* (es decir, determina, de la forma que consideres
+oportuna, si el modelo que has ajustado es más justo que el más conservador)
+
+* * * *
+
+El coste de cada poliza se puede predecir mediante:
+
+Coste = Número de siniestros $\times$ Coste medio por siniestro
+
+* El número de siniestros se modela mediante un modelo lineal generalizado de tipo Poisson. En nuestro caso, la variable a predecir es `N_CLAIMS`.
+
+* El coste medio por siniestro (`INCURR_COST/N_CLAIMS`) se modela mediante un GLM de tipo Gamma.
+
+* La credibilidad que se otorga a cada una de las observaciones se pondera en
+base a su exposición (la fracción del año que ha transcurrido desde que fue
+contratada la póliza) (`EXPOSURE`).
+
+El primer punto supone predecir si el individuo en particular sufrirá un accidente, y además, el número de ellos. En este tipo de muestras donde el número de ocurrencias es muy bajo (solo hay un `r sprintf('%.1f',100*mean(windscreen$N_CLAIMS > 0))`% de `N_CLAIMS > 0`), existen varias maneras de equilibrar el dataset para que los modelos perciban que existen más casos que el trivial, en el que nadie tiene accidentes. Entre las estrategias a seguir se pueden utilizar dos que son complementarias: el denominado *undersampling*, que supone crear una sub-muestra de entrenamiento en la cual la clase mayoritaria (en nuestro caso `N_CLAIMS = 0`) se inframuestrea, reduciéndose su tamaño a uno similar al de la clase minoritaria (`N_CLAIMS > 0`) que suele ser la de interés La alternativa es el *oversampling*, que supone repetir la sub-muestra que integra la clase minoritaria hasta alcanzar un tamaño comparable al de la mayoritaria. Como esta última estrategia puede inducir a *overfitting* optaremos por la primera.
+
+Un problema derivado de estas estrategias es cuándo y dónde introducir el proceso de selección de predictores (*feature selection*): ¿discriminar  predictores significativos en la muestra completa, que está desequilibrada?, ¿hacerlo en muestras equilibradas mediante el proceso de *under/over sampling*, donde los predictores podrían cobrar una significación artificial?, ¿probar en submuestras de diferente grado de balanceo?, etc. Un proceso refinado que busca tanto significación como poder predictivo, consiste en seleccionar varias combinaciones de predictores y validar todas y cada una de ellas, por ejemplo mediante *cross validation*, de manera que al final se pueda elegir el conjunto de *features* que presenta un menor error y mayor capacidad predictiva (véase por ejemplo: http://www.marcoaltini.com/blog/dealing-with-imbalanced-data-undersampling-oversampling-and-proper-cross-validation)
+
+Aquí se han probado un modelo con todos los predictores y se ha buscado una combinación reducida de *features* según significancia en sub-muestras *under-sampleadas* de diferente tamaño, empezando en una submuestra que está perfectamente equilibrada (ambas clases del mismo tamaño) hasta llegar a la muestra original, desequilibrada.
+
+```{r}
+set.seed(43)
+rows_claimed <- sum(windscreen$N_CLAIMS > 0) 
+
+data_claimed <- windscreen[windscreen$N_CLAIMS > 0, ] # Clase minoritaria
+data_unclaimed <- windscreen[windscreen$N_CLAIMS == 0, ] # Clase mayoritaria
+
+# Balanceo en diferentes grados: tamaño de N_CLAIMS == 0 en la submuestra: n= 1, 4 y 20 veces el tamaño de N_CLAIMS > 0 hasta la muestra original (full).
+# Regresiones
+size.unc = 1 # 1, 4, 20
+indices <- sample(nrow(data_unclaimed), size.unc*rows_claimed) # Training
+training_data_unclaimed <- data_unclaimed[indices, ]
+training_data <- rbind(data_claimed, training_data_unclaimed)
+
+model.first <- glm(N_CLAIMS ~ INSTALLMENT + GENDER + AGE_DRIVER +
+                           AGE_ADD_DRIVER + AGE_VEHICLE + HPOWER + FUEL2 +
+                           VALUE_VEHICLE + ANTPOL + pesopot + DES_ZONE2 +
+                           SPECIAL_BRAND,
+                        data = training_data,
+                        family = poisson(link = 'log'),
+                        weights = EXPOSURE) # First model
+summary(model.first)
+
+model.red.1 <- glm(N_CLAIMS ~ INSTALLMENT + AGE_DRIVER + FUEL2 + ANTPOL,
+                      data = training_data,
+                      family = poisson(link = 'log'),
+                      weights = EXPOSURE) # Modero reducido para size.unc = 1
+summary(model.red.1)
+
+size.unc = 4 # 1, 4, 20
+indices <- sample(nrow(data_unclaimed), size.unc*rows_claimed) # Training
+training_data_unclaimed <- data_unclaimed[indices, ]
+training_data <- rbind(data_claimed, training_data_unclaimed)
+
+model.red.4 <- glm(N_CLAIMS ~ INSTALLMENT + GENDER + AGE_DRIVER +  
+                      FUEL2 + ANTPOL + SPECIAL_BRAND,
+                      data = training_data,
+                      family = poisson(link = 'log'),
+                      weights = EXPOSURE) # Modero reducido para size.unc = 4
+summary(model.red.4)
+
+size.unc = 20 # 1, 4, 20
+indices <- sample(nrow(data_unclaimed), size.unc*rows_claimed) # Training
+training_data_unclaimed <- data_unclaimed[indices, ]
+training_data <- rbind(data_claimed, training_data_unclaimed)
+
+model.red.20 <- glm(N_CLAIMS ~ INSTALLMENT + GENDER + AGE_DRIVER +  
+                      FUEL2 + ANTPOL + SPECIAL_BRAND,
+                      data = training_data,
+                      family = poisson(link = 'log'),
+                      weights = EXPOSURE) # Modero reducido para size.unc = 20
+summary(model.red.20)
+
+model.red.full <- glm(N_CLAIMS ~ INSTALLMENT + GENDER + AGE_DRIVER +  
+                      FUEL2 + ANTPOL + SPECIAL_BRAND,
+                      data = windscreen,
+                      family = poisson(link = 'log'),
+                      weights = EXPOSURE) # Full sample
+summary(model.red.full)
+```
+
+Nótese que hemos utilizado `EXPOSURE` como peso de las observaciones.
+
+Los modelos reducidos significativos para tamaño relativo 1:4, 1:20 entre clases `N_CLAIMS = 0`:`N_CLAIMS > 0` y el reducido de muestra completa tienen la misma formulación, comparten el mismo set de predictores. Curiosamente podríamos habernos ahorrado estudiar submuestras equilibradas y haber optado por buscar un modelo en el set de datos original. 
+
+Hasta aquí, el número de siniestros:
+
+- crece con el número de plazos que tiene suscrito el conductor en el pago de la prima (!) (¿este fraccionamiento del pago se relaciona con la situación económica? ¿y esta última con la salud del vehículo?);
+- disminuye si es `GENDER = 2` (presumiblemente mujer, no está claro de la info que tenemos previa del dataset)
+- depende inversamente de la edad del conductor; 
+- es menor para vehículos propulsados por gasolina;
+- es menor a mayor antigüedad de la poliza;
+- es mayor en el subconjunto de marcas seleccionadas.
+
+Esto respecto al número de reclamaciones, mientras que para `INCURR_COST/N_CLAIMS` seguimos el siguiente procedimiento (previa construcción de la variable coste por siniestro):
+
+```{r}
+windscreen$CLAIM_COST <- windscreen$INCURR_COST / windscreen$N_CLAIMS
+windscreen$CLAIM_COST[is.nan(windscreen$CLAIM_COST)] <- 0
+
+plot(fitdist(windscreen$CLAIM_COST[windscreen$CLAIM_COST>0], 'gamma'))
+
+model.claimcost.full <- glm(CLAIM_COST ~ INSTALLMENT + GENDER + AGE_DRIVER +
+                           AGE_ADD_DRIVER + AGE_VEHICLE + HPOWER + FUEL2 +
+                           VALUE_VEHICLE + ANTPOL + pesopot + DES_ZONE2 +
+                           SPECIAL_BRAND,
+                        data = windscreen[windscreen$CLAIM_COST>0],
+                        family = Gamma(link = 'log'),
+                        weights = EXPOSURE)
+summary(model.claimcost.full)
+
+model.claimcost.two <- glm(CLAIM_COST ~ AGE_DRIVER + AGE_VEHICLE +
+                           VALUE_VEHICLE + DES_ZONE2,
+                        data = windscreen[windscreen$CLAIM_COST>0],
+                        family = Gamma(link = 'log'),
+                        weights = EXPOSURE)
+summary(model.claimcost.two)
+
+model.claimcost.three <- glm(CLAIM_COST ~ VALUE_VEHICLE + DES_ZONE2,
+                        data = windscreen[windscreen$CLAIM_COST>0],
+                        family = Gamma(link = 'log'),
+                        weights = EXPOSURE)
+summary(model.claimcost.three)
+
+windscreen$URBAN <- windscreen$DES_ZONE2 %in% c('SubUrb', 'Urbano')
+
+model.claimcost.four <- glm(CLAIM_COST ~ VALUE_VEHICLE + URBAN,
+                        data = windscreen[windscreen$CLAIM_COST>0],
+                        family = Gamma(link = 'log'),
+                        weights = EXPOSURE)
+summary(model.claimcost.four)
+```
+
+Este modelo indica que el coste por siniestro aumenta con el valor del vehículo y disminuye si el cliente procede de un entorno urbano. El ajuste del modelo a los datos es bastante razonable:
+
+```{r warning = FALSE}
+predictions.claimcost <- predict(model.claimcost.four,
+                       newdata = windscreen,
+                       type = 'response') 
+
+windscreen$predictions.claimcst <- predictions.claimcost
+
+ggplot(data = windscreen,
+       aes(x = VALUE_VEHICLE, y = CLAIM_COST, col = URBAN)) + 
+  geom_point() +
+  geom_line(aes(y = predictions.claimcost ), size = 1) +
+  xlim(1,60000) + ylim(1, 1000)
+```
+
+No se han hecho visualizaciones de posibles predicciones de `N_CLAIMS` porque son todos muy cercanos a cero (por debajo de 0.5), esto se debe al hecho ya mencionado de que el dataset está muy despoblado y a que el modelo trata la variable objetivo como continua. Estos valores fraccionarios se pueden interpretar como la probabilidad de que el sujeto en cuestión sufra accidentes, que es mayor a mayor número de accidentes futuribles (8-|). Dado que esta predicción se utilizará como input de un modelo compuesto (coste = n_claims*claimcost), veremos que no supone un problema en la interpretación del coste.
+
+Validamos los modelos parciales y refinamos los coeficientes mediante *10-fold cross validation*:
+
+```{r}
+
+train_control<- trainControl(method="cv", number=10, savePredictions = TRUE)
+
+model.n_claims <- train(N_CLAIMS ~ INSTALLMENT + GENDER + AGE_DRIVER +  
+                      FUEL2 + ANTPOL + SPECIAL_BRAND,
+                      data = windscreen,
+                      trControl = train_control,
+                      method = 'glm',
+                      family = poisson(link = 'log'),
+                      weights = EXPOSURE, na.action = na.omit) # cross validation
+
+model.claimcost <- train(CLAIM_COST ~ VALUE_VEHICLE + URBAN,
+                         data = windscreen[windscreen$CLAIM_COST>0],
+                         trControl = train_control,
+                         method = 'glm',
+                         family = Gamma(link = 'log'),
+                         weights = EXPOSURE,
+                         na.action = na.omit)
+```
+
+Para validar más correctamente un método adecuado puede ser *cross-validation* en muestras totalmente equilibradas (http://www.marcoaltini.com/blog/dealing-with-imbalanced-data-undersampling-oversampling-and-proper-cross-validation
+o
+https://www.r-bloggers.com/handling-class-imbalance-with-r-and-caret-an-introduction/). Como la validación aquí implementada proporciona resultados razonables (como veremos más adelante) no complicaremos más el procedimiento.
+
+Una vez que tenemos ambos ingredientes predecimos el coste en el que va a incurrir el cliente el año entrante:
+
+```{r warning=FALSE}
+predictions.nclaims <- model.n_claims$pred$pred# predecimos aquí N_CLAIMS
+predictions.claimcost<- predict(model.claimcost, windscreen,type = "raw") # coste unitario
+cost.pred = predictions.nclaims*predictions.claimcost # Coste por cliente
+windscreen$cost.pred <- cost.pred
+```
+
+Este coste se puede interpretar como la **prima predicha** con la que habrá que gravar a nuestros clientes.
+
+```{r}
+ggplot(windscreen) + aes(x = 'prima predicha', y = cost.pred) + geom_boxplot() + labs(x='', y='') +
+geom_hline(aes(yintercept=prima_pura_conservadora),  color="red", linetype="dashed", size=1) +
+  annotate("text", 0.55 , prima_pura_conservadora + 5, label = "ppc", colour = 'red')
+```
+
+
+En promedio, la prima predicha, `r sprintf('%.2f',sum(cost.pred, na.rm = T)/nrow(windscreen))`, es mayor que la prima conservadora, `r sprintf('%.2f',prima_pura_conservadora)`, es inferior un `r sprintf('%.1f',100*mean(windscreen$cost.pred < prima_pura_conservadora, na.rm = T))`% de las veces, y su mediana es `r sprintf('%.2f',median(windscreen$cost.pred, na.rm = T))`, más parecida a la conservadora. En la gráfica anterior se ve un conjunto de outliers a valores altos. En términos de ingresos totales, con la prima pura se recaudaría un total de `r sprintf('%.0f',sum(prima_pura_conservadora)*nrow(windscreen))` y con la prima estimada `r sprintf('%.0f',sum(cost.pred, na.rm = T))`, un `r sprintf('%.1f', abs(100*(sum(cost.pred, na.rm = T) - sum(prima_pura_conservadora)*nrow(windscreen))/(sum(prima_pura_conservadora)*nrow(windscreen))))`% más.
+
+```{r  warning = FALSE}
+g <- windscreen[, .(pred.prime.average= mean(cost.pred, na.rm = T)) , by = N_CLAIMS]
+ggplot(g) +  aes(x = N_CLAIMS, y = pred.prime.average) + geom_bar(stat = 'Identity')
+```
+
+En el sentido de que **es mayor, en promedio. para los clientes que sufrieron algún accidente la prima estimada es más justa que la prima conservadora**, la cual es idéntica para todos los clientes. Esto se aprecia también en el siguiente gráfico de densidad (donde se han omitido los outliers y los dos únicos casos de `N_CLAIMS = 3`):
+
+```{r  warning = FALSE}
+ggplot(subset(windscreen, N_CLAIMS %in% c(0,1,2)), aes(x= cost.pred, colour = factor(N_CLAIMS), fill=factor(N_CLAIMS))) + 
+  geom_density(size=1, alpha=.3) +
+  xlim(0,50) + geom_vline(aes(xintercept=prima_pura_conservadora)) +
+  annotate("text", prima_pura_conservadora + 2.2, 0.095 , label = "ppc")
+```
+
+
+* * * *
+
+d) Interpreta el modelo y confirma o desmiente tus hipótesis del apartado (a).
+
+* * * *
+
+En general el modelo sobreestima los gastos incurridos y muy probablemente se deba a su formulación o quizá a que sea necesario introducir un procedimiento más refinado de validación (no profundizaremos más en este punto). 
+
+Ya se ha dado una interpretación al modelo en el apartado anterior y los predictores son, en orden de importancia (según el valor de los coeficientes y su signo): 
+
+- `SPECIAL_BRAND, INSTALLMENT` que influyen positivamente en el número de reclamaciones y,
+
+- `FUEL2`, `GENDER`, `ANTPOL` y `AGE_DRIVER` que disminuyen el número de siniestros, los dos últimos de manera marginal.
+
+- `URBAN` que disminuye el coste y `VALUE_VEHICLE` que parece que tiene una pequeña influencia creciente en los costes.
+
+```{r}
+summary(model.n_claims)
+summary(model.claimcost)
+```
+
+Solamente se exploró la pertenencia a las marcas especiales en el apartado a) y esto está de acuerdo con el hecho de que sea un predictor significativo para el número de siniestros. Resulta que esas marcas en particular son de vehículos de transporte comercial (camiones, furgonetas, etc) y todo terrenos, por lo que es normal que sufran más accidentes de lunas.
+
+

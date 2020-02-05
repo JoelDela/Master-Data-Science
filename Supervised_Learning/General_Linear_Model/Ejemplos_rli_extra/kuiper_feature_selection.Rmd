@@ -1,0 +1,179 @@
+---
+title: "Regresión Lineal (segunda sesión, ejemplo 2)"
+author: "Mario Encinar"
+output: html_document
+---
+
+# ¿Cuánto vale tu coche?
+
+Este ejercicio se ha tomado de [aquí](http://ww2.amstat.org/publications/jse/v16n3/datasets.kuiper.html), y el objetivo es reproducir, de forma aproximada, lo que ahí se hace en R.
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(readxl)
+```
+
+
+## Lectura y descripción de los datos
+
+```{r}
+gm_cars <- read_excel('kuiper.xls')
+summary(gm_cars)
+```
+
+ * `Make`, `Model` y `Trim` son variables categóricas (de hecho, son niveles consecutivos dentro de una jerarquía). `Type` también es una variable categórica, aunque no tiene relación directa con las anteriores.
+
+* `Cruise`, `Sound` y `Leather` también son variables categóricas (velocidad de crucero o no, altavoces mejorados o no, asientos de cuero o no).
+
+* `Cylinder` y `Doors` son también variables categóricas, aunque puede tener sentido interpretarlas como variables numéricas.
+
+* `Price`, `mileage` y `liter``  son variables numéricas.
+
+```{r}
+gm_cars$Make <- as.factor(gm_cars$Make)
+gm_cars$Model <- as.factor(gm_cars$Model)
+gm_cars$Trim <- as.factor(gm_cars$Trim)
+gm_cars$Type <- as.factor(gm_cars$Type)
+```
+
+```{r}
+pairs(gm_cars[,c('Price', 'Mileage', 'Cylinder', 'Liter')], col = 'red')
+```
+
+Ajustamos un primer modelo, donde intentamos estimar el precio en base al número de millas recorridas por el coche.
+
+```{r}
+price_easy_model <- lm(Price ~ Mileage, data = gm_cars)
+summary(price_easy_model)
+```
+
+El modelo parece muy malo. Los **p-valores** sugieren que existe una verdadera relación lineal entre ambas variables, pero que Mileage, por sí sola, no tiene suficiente información como para explicar la variabilidad de Price.
+
+```{r}
+plot(gm_cars$Mileage, gm_cars$Price, col = 'red')
+abline(price_easy_model, col = 'blue')
+```
+
+Seleccionamos variables utilizando backward stepwise selection.
+
+```{r}
+price_fit_null <- lm(Price ~ 1, data = gm_cars)
+price_fit_all <- lm(Price ~ ., data = gm_cars)
+price_fit_bwd <- step(price_fit_all, price_fit_null, direction = 'backward')
+```
+
+
+```{r}
+summary(price_fit_bwd)
+```
+
+Este modelo presenta, en aparencia, una extraordinaria bondad de ajuste, pero no es interpretable. Sustituimos `Trim` y `Model` por `Make`
+
+
+```{r}
+price_custom_fit <- lm(Price ~ Make + Sound + Leather + Mileage, data = gm_cars)
+summary(price_custom_fit)
+```
+
+Los **p-valores** sugieren que se deberían eliminar las variables `Sound` y `Leather`. Comenzamos eliminando una y, si es necesario, eliminamos la otra.`
+
+Por el criterio “del codo”, tiene sentido tomar dos o cuatro variables. Probamos con cuatro (en este caso, resultan ser weight, year y origin).
+
+```{r}
+price_custom_fit <- lm(Price ~ Make + Leather + Mileage, data = gm_cars)
+summary(price_custom_fit)
+```
+
+```{r}
+price_custom_fit <- lm(Price ~ Make + Mileage, data = gm_cars)
+summary(price_custom_fit)
+```
+
+Analizamos gráficamente el modelo.
+
+```{r}
+plot(gm_cars$Price, price_custom_fit$residuals, col = 'red', xlab = 'Price', ylab = 'Residuals')
+```
+
+¿Qué sucede en cada cluster?
+
+```{r}
+plot(gm_cars$Price, price_custom_fit$residuals, col = gm_cars$Make, xlab = 'Price', ylab = 'Residuals')
+```
+
+Quizá deban considerarse como outliers los puntos con residuo superior a 20.000. ¿Y high leverage points?
+
+```{r}
+plot(hatvalues(price_custom_fit))
+```
+
+La estructura es sospechosa.
+
+```{r}
+plot(hatvalues(price_custom_fit), col = gm_cars$Make)
+```
+
+Quizá sería interesante hacer un modelo separado para cada marca (de hecho, se observa una estructura lineal bastante clara en cada cluster, y salvo dos de ellos están formados, esencialmente, por una marca cada uno).
+
+```{r}
+plot(gm_cars$weight, gm_cars$mpg, col = 'red', xlab = 'weight', ylab = 'mpg')
+```
+
+```{r}
+plot(gm_cars$year, gm_cars$mpg, col = 'red', xlab = 'year', ylab = 'mpg')
+```
+
+
+Probamos a introducir la variable `weight^2` en el modelo. Para no tener que reescribirlo todo, podemos utilizar la función update.
+
+```{r}
+mpg_fit_wyo_weight2 <- update(mpg_fit_wyo, . ~ . + I(weight^2))
+summary(mpg_fit_wyo_weight2)
+```
+
+Esto sugiere que quizá podríamos “refactorizar” la variable origin y distinguir entre coches europeos y no europeos únicamente.
+
+
+```{r}
+Auto$European <- ifelse(Auto$origin == 'European', 1, 0)
+candidate_model <- lm(mpg ~ weight + I(weight^2) + year + European, data = Auto)
+summary(candidate_model)
+```
+
+Analizamos gráficamente el modelo resultante:
+
+```{r}
+plot(Auto$mpg, candidate_model$residuals, col = 'red', xlab = 'mpg', ylab = 'residuals')
+```
+
+Salvo por los outliers (que podrían o no eliminarse), éste es el diagrama de residuos que uno debería esperar.
+
+Estudiamos la presencia de high-leverage points:
+
+```{r}
+plot(hatvalues(candidate_model), col = 'red')
+```
+
+Muy probablemente, la eliminación de los siete puntos con mayor estadístico h mejoraría sensiblemente la bondad de ajuste de nuestro modelo.
+
+Finalmente, estudiamos la colinealidad:
+
+```{r}
+vif(candidate_model)
+```
+
+
+Sorprendentemente, una entre las variables weight y weight2 debe eliminarse, con lo que lo mejor que podemos hacer es volver al modelo que teníamos justo antes de introducir weight2:
+
+```{r}
+summary(mpg_fit_wyo)
+```
+
+
+Estudiamos la colinealidad en éste:
+
+```{r}
+vif(mpg_fit_wyo)
+```
+
+Resulta que no hay colinealidad, así que éste es nuestro modelo final.

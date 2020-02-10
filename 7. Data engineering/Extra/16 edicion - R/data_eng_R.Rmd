@@ -1,0 +1,293 @@
+---
+title: "Data Engineering with R - KSchool"
+author: "Maria Hernandez"
+output: html_document
+---
+
+In this notebook we are going to see two tools that, *as a Data Scientist* you should include in your toolbox so you can build better production-ready code. This is not meant to be an exhaustive list of Data Engineering tools, just the minimum vision a DS should know. 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, error = TRUE)
+library(assertthat)
+library(testthat)
+```
+
+
+## Assertions - `assertthat` package
+
+Assertions are used to check that the result of an operation is the expected. For example:
+
+- We query to a database, we may first check that the table exists
+- We expect the result has more than 0 rows
+- We check that our *number_of_operations* column is always greater than 0
+- We check that our *precission and recall* are above some defined threshold
+- We want to check that our function is running properly (related to unit tests)
+
+To do that, we will use the function `assert_that` from `assertthat` package. This function returs `TRUE` is the check is true, or throws an error otherwise. 
+
+### Examples
+
+```{r examples assertions}
+# true assertions
+assert_that(3 > 1)
+assert_that(is.character('a'))
+assert_that(length(c(1, 2, 3)) == 3)
+
+# false assertions
+assert_that(1 > 3)
+assert_that(is.character(3))
+assert_that(length(c(1, 2, 3)) == 4)
+```
+
+We can set a custom error message
+
+```{r example false assertions custom message}
+# true assertion
+assert_that(3 > 1, msg = "Number is not greater than threshold")
+# false assertions
+assert_that(1 > 3, msg = "Number is not greater than threshold")
+assert_that(is.character(3), msg = "Type is not as expected")
+assert_that(length(c(1, 2, 3)) == 4, msg = "Incorrect length vector")
+```
+
+
+We can also use `stop` and `stopifnot` functions from Base R. 
+
+Example:
+```r
+x = 3
+if (!(x <= 3) ) { stop("The argument should be higher than 3")}
+stopifnot(x > 3)
+```
+
+
+
+
+
+**Exercise: Include assertions in the following function and check the functionality with assertions outside.** 
+
+
+```{r fibonacci, echo = TRUE, eval = TRUE}
+fibonacci <- function(k){
+  if (k <= 1) {
+    return (1)
+  }else{
+    return (fibonacci(k-1) + fibonacci(k-2))
+  }
+}
+```
+
+
+#### Handling the errors
+
+In the previous exercise, everytime there is an error the execution is halted. We can't even test that our error handling is correct. We can capture errors with `try`. Example:
+
+```r
+myfun <- function(x){
+  tryCatch({
+    #code to execute
+    #it can include checks
+    assert_that(x > 3)
+    # ...
+    return (x)
+  }, 
+  error = function(e){
+    return (-1)
+  }, 
+  finally = {
+    # clean up code
+  })
+}
+```
+
+
+
+## Unit tests
+
+We want to check that: 
+
+1) Our functions are correct
+2) Our functions keep being correct when I change other functions
+
+We don't want to keep checking that we haven't broken anything manually, again and again. We want the machine do it for us. 
+
+So we create a list of tests, that do some checks. The list keeps growing as we develop more functionalities. 
+
+Some structure:
+
+- We place our (related) functions in a file, `foo.R`
+- We have a `tests` folder in our folder.
+- We create a `tests/test.foo.R` file for each file with functions, containing the testing code.
+
+In our example:
+
+- place `fibonacci` function inside a `math_functions.R` file
+- create `tests/test.math_functions.R` containing the test
+
+**Exercise: Create `math_functions.R` file including Fibonacci function and `tests/test.math_functions.R` file ** 
+
+
+We will use the `testthat` library for test execution.
+```r
+test_file('tests/test.math_functions.R')
+```
+
+An example of a test:
+
+```r
+test_that("fib(1)", expect_true(fibonacci(1) == 1))
+```
+
+**Exercise: create and execute some true and false tests**
+
+```{r test_fibonacci}
+# to-do
+```
+
+
+As a test condition we can use a logical expression (ex: `fibonacci(1) == 1`) or use the built-in functions in the library for the test to be more self-explained:
+
+| Function        | Short       |
+| ------------- |-------------|
+| expect_that(x, is_true())      | expect_true(x) |
+| expect_that(x, is_false())      | expect_false(x) |
+| expect_that(x, is_a(y))      | expect_is(x, y) |
+| expect_that(x, equals(y))      | expect_equal(x, y) |
+| expect_that(x, gives_warning(y))      | expect_warning(x, y) |
+| expect_that(x, throws_error(y))      | expect_error(x, y) |
+| ... | ... |
+
+Complete info: https://journal.r-project.org/archive/2011/RJ-2011-002/RJ-2011-002.pdf
+
+Example:
+
+```{r expect error fibonacci}
+fibonacci <- function(k){
+  assert_that(is.numeric(k), msg = "K needs to be numeric")
+  assert_that(k>=0, msg = "K needs to be a positive number")
+  if (k <= 1) {
+    return (1)
+  }else{
+    return (fibonacci(k-1) + fibonacci(k-2))
+  }
+}
+
+expect_error(fibonacci(-1)) # this does check that an error is thrown
+```
+
+
+
+**Context**
+
+Gives a *name* to each file so the resport is more organized.
+
+
+**Running multiple tests**
+
+You can use functions:
+
+- `test_file ('file')`
+- `test_dir ('tests/')` : only runs files starting by 'test'
+- `R CMD check`
+
+
+Our test file will look like:
+```r
+library(testthat)
+
+context("Testing Math Functions")
+test_that("example inputs", expect_equal(fibonacc(1), 1))
+test_that("...", expect_equal(1, 1))
+...
+
+test_that("correct inputs", {
+  expect_xxx(),
+  expect_xxx(),
+  ...
+})
+```
+
+
+**Exercise: create `test.math_functions.R` and include at least 10 tests for fibonacci function.** 
+Include some positive and negative tests, as well as organize the test file. 
+
+First, include the example code above as the first tests. 
+
+
+
+**Exercise: create a new function (factorial) and new test file for that function.**
+
+
+## Logging
+
+There are two main concepts regarding logging: *handler* and *level*
+
+- Handler: where we will write our logs (console, file, ...)
+- Level: errors have different levels of severity 
+
+It depends on the library or system that we will use, but the most common are:
+
+  FINEST/ALL < DEBUG < INFO < WARN < ERROR < FATAL < OFF
+
+We will use library `logging`. 
+
+```{r loglevels}
+library(logging)
+logging::loglevels
+```
+
+Each handler has a level config and only errors high a severity level equal or greater than the threshold will be logged.
+
+*Initiate a basic loging configuration*
+
+```{r logging}
+basicConfig()
+```
+
+This creates:
+- a default handler (basic.stdout) 
+- at level **INFO** (20).
+
+```{r}
+ls(getLogger())
+getLogger()[['handlers']]
+getLogger()[['level']]
+```
+
+Log something to the current handler (standard out, console), at different levels:
+
+```{r logging standard output}
+logerror('Writing error log')
+logwarn('Writing warning log')
+loginfo('Writing info log')
+logdebug('Writing debug log')
+```
+
+`logdebug` does nothing becuase current level is **INFO** so anything below that level won't be printed. 
+
+### Log to file
+
+We will add a `writeToFile` handler for the logger. 
+
+```{r log to file}
+logReset()
+basicConfig(level='FINEST')
+addHandler(writeToFile, file="testing.log", level='DEBUG')
+
+getLogger()[['handlers']]
+
+loginfo('test %d', 1)
+logdebug('test %d', 2)
+logwarn('test %d', 3)
+logfinest('test %d', 4)
+```
+
+Check that file `testing.log` has been created. Open it and check what has been logged. 
+
+...
+
+We had check the level of that handler as **DEBUG** so the **FINEST** level is not written. However, it is logged into the console since the level of basicConfig is finest. 
+
+
+##### End.

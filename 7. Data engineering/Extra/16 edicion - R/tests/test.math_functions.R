@@ -1,0 +1,6 @@
+context('Testing Trues')
+test_that("test1", expect_true(fibonacci(1) == 1))
+test_that("test2", expect_true(fibonacci(5) == 1))
+context('Testing Falses')
+test_that("test1", expect_false(fibonacci(-1) == 1))
+test_that("test2", expect_false(fibonacci(5) == 1))

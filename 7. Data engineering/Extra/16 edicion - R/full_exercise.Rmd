@@ -1,0 +1,137 @@
+---
+title: "Data Science - complete exercise"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+In this notebook you are asked to develop a full R project. 
+
+The standard steps of a Data Science projects include, among others:
+
+- Adquiring data 
+- Exploring and cleaning data
+- Set up our modeling objective
+- Fit several models and select the best one
+- Make a report explaining your process and the expected results
+- Put our model into production
+- Apply our model to new data
+
+We also want our project to be a proper Software Engineering project, so it should contain:
+
+- Train and Test separately
+- Logging
+- Unit tests
+- Control errors
+- Configuration in separate folders
+
+
+In the following section you will find some hints on how to approach the problem
+
+## Adquiring data
+
+Think of a suitable website and scrap some of its content. You can use library `library('rvest')` and function `read_html(url)` to get the content of a webpage. 
+```{r}
+library('rvest')
+url <- 'https://www.filmaffinity.com/es/topgen.php'
+webpage <- read_html(url)
+```
+
+Some useful functions:
+
+- Write `html_` in the console and press tab. 
+- `html_nodes()`: identifies HTML wrappers. Returns each HTML tag in a row
+- `html_nodes(".class")`: calls node based on css class
+- `html_nodes("#id")`: calls node based on <div> id
+- `html_table()`: turns HTML tables into data frames
+- `html_text()`: strips the HTML tags and extracts only the text
+
+Example, get the movie list
+```{r}
+movies <- html_nodes(webpage, ".movie-card")
+movies
+```
+
+Example, get the text of each movie
+
+```{r}
+html_text(movies)
+```
+
+Writing with pipe operator:
+
+```{r}
+library(magrittr)
+
+webpage %>%
+  html_nodes(".movie-card") %>% 
+  html_text()
+```
+
+Some webs that you might find interesting to analyze:
+
+- https://www.filmaffinity.com/es/topgen.php
+- (NO) https://www.eltenedor.es/ciudad/madrid/328022 o https://www.eltenedor.es/restaurante+madrid
+- https://www.laliga.es/laliga-santander
+- https://www.tripadvisor.es/Restaurants-g187514-Madrid.html
+
+Some example code:
+
+- https://stat4701.github.io/edav/2015/04/02/rvest_tutorial/
+- http://bradleyboehmke.github.io/2015/12/scraping-html-text.html
+- https://rpubs.com/ryanthomas/webscraping-with-rvest
+
+
+## Exploring and cleaning data
+
+Example: 
+
+- remove NA
+- convert to proper types
+- remove outliers...
+- filter only important rows...
+- plot some statistics, distribution...
+
+## Set up our modeling objective
+
+- define our objective
+- build the target
+- select the features
+- build our training dataset
+- split train, test, validation
+- think of the metric you want to optimize
+
+## Fit several models and select the best one
+
+- apply different models with different set of parameters
+- report metrics on each one and select the final model
+
+## Make a report explaining your process and the expected results
+
+- present results to your manager / teacher / ...
+
+## Put our model into production
+
+- retrain your selected model on whole dataset
+- isolate the final useful code that is needed for prediction
+- make a *predict* function
+
+## Apply our model to new data
+
+## Train and Test separately
+
+- isolate your training code so you can retrain multiple times
+
+## Logging
+
+- add logs on your training steps and predict code
+
+## Control errors
+
+- use assertions
+- create unit tests
+
+## Configuration in separate folders
+
+- don't use magic numbers or constants, place them in a separate folder so you can easily change it without having to rewrite the code

@@ -1,0 +1,43 @@
+Notes from Juan Arevalo:
+
+- Repaso de Álgebra: https://medium.com/@rathi.ankit/linear-algebra-for-data-science-a9648b9daee0
+
+- Repaso de Grafos:
+--- https://towardsdatascience.com/graph-theory-132122ac38f2
+--- https://blog.usejournal.com/data-modelling-with-graph-theory-part-1-introduction-f52aaf11f974
+
+Other:
+
+Hola, 
+
+Espero que hayáis podido descansar lo que quedaba de finde =) Os dejo el notebook tal y como lo resolvimos en clase, así como las versioens originales completas (verisón de profesor, vaya). Tenéis ejercicios de sobra para practicar, así que no dudéis en hacerlo y preguntarme por aquí!!! 
+
+Os dejo además algún material adicional que puede os resulte interesante =)
+
+* Sobre librerías:
+
+https://github.com/Microsoft/Recommenders
+
+https://github.com/tensorflow/ranking
+
+* Un post que escribimos en BBVA, con consejos sorbe cómo hacer Sistemas de Recomendación (contiene un montón de links interesantes!):
+
+https://www.bbvadata.com/a-few-recommendations-for-a-data-scientist-who-wants-to-get-started-in-recommender-systems/
+
+* La web que recomendaba pelis online: https://movix.ai
+
+* Sobre el tema de la radicalización con el algoritmo de recomendación de youtube: 
+
+https://youtube.googleblog.com/2019/06/our-ongoing-work-to-tackle-hate.html
+
+* Sobre el problema del selection bias:
+
+http://www.cs.cornell.edu/~adith/B-exam.pdf
+
+* Y por último, un par de libros:
+
+https://www.springer.com/gp/book/9783319296579
+
+https://www.amazon.es/Statistical-Methods-Recommender-Systems-Agarwal/dp/1107036070
+
+Pues nada más por mi parte. Que paséis buen verano, y nos vemos a la vuelta con las clases de Deep Learning!!

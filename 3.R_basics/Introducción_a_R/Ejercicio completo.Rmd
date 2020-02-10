@@ -1,0 +1,78 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+
+```{r}
+library(dslabs)
+data(gapminder)
+```
+
+```{r}
+View(gapminder)
+head(gapminder)
+str(gapminder)
+```
+
+
+Queremos saber: ¿Entre Turquía y Sri Lanka, cuál tuvo mayor mortalidad infantil en 2015?
+
+```{r}
+gapminder[which(gapminder$country=='Turkey'& gapminder$year==2015),'infant_mortality'] > gapminder[which(gapminder$country=='Sri Lanka'& gapminder$year==2015),'infant_mortality']
+```
+
+Ahora vamos a hacerlo de una forma más sencilla con 'filter' a través de los PIPELINES (%>%, funciona igual que Linux):
+
+
+```{r}
+library(dplyr)
+
+gapminder %>% 
+  filter(year==2015 & country %in% c('Sri Lanka','Turkey')) %>%
+  select (country,year,infant_mortality)
+
+```
+
+Queremos comprobar la diferencia de natalidad entre Europa y Asia
+
+
+```{r}
+library(ggplot2)
+
+years<-c(1962,1980,1990,2000,2012)
+continents<-c('Europe','Asia')
+gapminder%>%
+  filter(year %in% years & continent %in% continents) %>%
+  ggplot( aes(fertility, life_expectancy, col = continent)) +
+  geom_point() +
+  facet_wrap(~year) 
+```
+
+```{r}
+wide_data<-read_csv("DataSets/fertility-two-countries-example.csv")
+wide_data
+#seleccionamos las primeras 9 columnas
+select(wide_data, country, `1960`:`1967`)
+```
+
+```{r}
+new_tidy_data <- wide_data %>%
+  gather(year, fertility, `1960`:`2015`)
+new_tidy_data
+```
+

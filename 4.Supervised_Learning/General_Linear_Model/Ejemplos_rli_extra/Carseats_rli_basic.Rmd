@@ -1,0 +1,156 @@
+---
+title: "Carseats- Regresión lineal - Basic example"
+output:
+  html_document: default
+  pdf_document:
+    latex_engine: xelatex
+---
+
+***1.*** La librería ISLR de R (cuya documentación puedes ver aquí) te permite cargar el set de datos Carseats.
+
+* * * *
+
+```{r setup, message=FALSE}
+library(ISLR)
+```
+
+####### Sales of Child Car Seats
+
+A simulated data set containing sales of child car seats at 400 different stores.
+
+A data frame with 400 observations on the following 11 variables.
+
+* Sales: Unit sales (in thousands) at each location
+
+* CompPrice: Price charged by competitor at each location
+
+* Income: Community income level (in thousands of dollars)
+
+* Advertising: Local advertising budget for company at each location (in thousands of dollars)
+
+* Population: Population size in region (in thousands)
+
+* Price: Price company charges for car seats at each site
+
+* ShelveLoc: A factor with levels Bad, Good and Medium indicating the quality of the shelving location for the car seats at each site
+
+* Age: Average age of the local population
+
+* Education: Education level at each location
+
+* Urban: A factor with levels No and Yes to indicate whether the store is in an urban or rural location
+
+* US: A factor with levels No and Yes to indicate whether the store is in the US or not
+
+```{r loading_data}
+library(data.table)
+Carseats <- as.data.table(Carseats)
+attach(Carseats)
+str(Carseats)
+```
+
+* * * *
+
+Responde a las siguientes cuestiones:
+
+**a)** Ajusta un modelo de regresión lineal para predecir Sales usando Price, Urban y US.
+
+* * * *
+
+```{r}
+modelPUUS <- lm(Sales ~ Price + Urban + US)
+summary(modelPUUS)
+```
+
+* * * *
+
+**b)** Interpreta los coeficientes del modelo y descríbelo en forma de ecuación.
+
+* * * *
+
+Los coeficientes de los predictores son:
+
+```{r}
+coef <- modelPUUS$coefficients  
+```
+
+Que determinan la ecuación de ajuste:
+
+`Sales =` `r coef[2]` `*Price` `r coef[3]` `*Urban +` `r coef[4]` `*US +` `r coef[1]`
+
+El hecho de que los coeficientes relacionados con `Price` y la variable `Urban` sean negativos indica que a mayor precio menor número de ventas y que si el almacen es urbano las ventas son inferiores que si se trata de un almacen rural. Por otro lado `US` lleva un peso positivo, de manera que si el almacen está en Estados Unidos mayores son las ventas.
+
+
+Los pesos relativos se pueden calcular según:
+```{r}
+abs(coef/min(abs(coef)))
+```
+El coeficiente más importante es el que va con `US` (25-50 veces más grande que los otros dos), así que lo que más influye en el precio es el hecho de que el almacen se encuentre en USA. Que el almacen sea urbano es es lo menos importante (veremos a continuación que tampoco es significativo).
+
+* * * *
+
+**c)** ¿Cuáles de los predictores tienen una relación estadísticamente significativa con la variable respuesta? En base a esto, construye un modelo reducido que sólo emplee esos predictores, y compara su bondad de ajuste con el modelo anterior. 
+
+* * * *
+
+```{r}
+summary(modelPUUS)
+```
+
+Observando el *p-valor* de los coeficientes, la variable `Urban` no es significativa, en este caso `Pr(>|t|) = 0.936`, que es muy grande. `Price`y `US` tienen *p-valores* muy pequeños, con significancias inferiores al 0.1%.
+
+Construimos el nuevo modelo sin `Urban`
+
+```{r}
+modelPUS <- lm(Sales ~ Price + US)
+summary(modelPUS)
+```
+La bondad de ajuste ($R^2$ ajustado) es ligeramente superior en este modelo que en el anterior. El nuevo modelo que usa `Price` y `Urban` describe un `r sprintf("%.2f",100*summary(modelPUS)$adj.r.squared)`% de la variabilidad de los datos frente a un `r sprintf("%.2f",100*summary(modelPUUS)$adj.r.squared)`% del anterior.
+
+
+
+* * * *
+
+**d)** Estudia la existencia de outliers o high leverage points en este último modelo.
+
+* * * *
+
+Pintamos los residuos
+```{r}
+plot(Sales, modelPUS$residuals, col = 'red', xlab = 'Sales', ylab = 'residuals')
+summary(modelPUS$residuals)
+```
+
+En general no es un modelo espectacular, el error tiene una relación lineal con la variable objetivo, es mejorable quizá incorporando nuevos predictores (no se hará aquí). El rango de valores que toman los residuos es grande, respecto a su valor medio de cero. Utilizaremos el diagrama de *caja y bigotes* para disinguir los outliers. Seguimos el criterio de que un punto pertenece a los `outliers` si se separa de la caja más de 1.5 veces el rango intercuartílico, definido como $RIC = Q3 - Q1$. Recordemos que la caja se centra en la mediana, y su límite inferior es el cuartil $Q1$ y el superior el cuartil $Q3$. 
+
+```{r}
+outliers <- boxplot(modelPUS$residuals)$out
+outliers
+```
+
+Esos tres puntos se pueden ver como outliers. Si los eliminamos:
+
+```{r}
+modelPUSNO <- lm(Sales ~ Price + US, data = Carseats[-as.numeric(names(outliers))])
+summary(modelPUSNO)
+```
+
+Los coeficientes no cambian demasiado pero la bondad de ajuste sube del `r sprintf("%.2f",100*summary(modelPUS)$adj.r.squared)`% al `r sprintf("%.2f",100*summary(modelPUSNO)$adj.r.squared)`%
+
+La existencia de puntos de palanca (*high leverage points*) se puede explorar en la gráfica siguiente:
+
+```{r}
+plot(hatvalues(modelPUS), col = 'red')
+str(hatvalues(modelPUS))
+```
+
+Un criterio posible es considerar que aquellos que se separan más de 0.02 en *hat value* son puntos palanca.
+
+```{r}
+modelPUSNhlp <- lm(Sales ~ Price + US, data = Carseats[!hatvalues(modelPUS) > 0.02]) 
+summary(modelPUSNhlp)
+```
+
+En este caso, eliminar estos puntos no mejoran la bondad de ajuste, sino todo lo contrario.
+
+* * * *

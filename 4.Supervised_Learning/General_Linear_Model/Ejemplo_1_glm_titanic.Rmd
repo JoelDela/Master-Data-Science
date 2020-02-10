@@ -1,0 +1,274 @@
+---
+title: "Ejemplo 1: glm titanic"
+output: 
+  html_document: 
+    theme: cerulean
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Carga de Datos
+
+```{r}
+rm(list = ls())
+```
+
+
+Se trata del (archi-)conocido dataset del `titanic`:
+
+```{r titanic}
+data_path <- 'titanic.csv'
+titanic <- read.csv(data_path, header = T, stringsAsFactors = F, encoding = 'utf-8')
+```
+
+## Análisis Exploratorio
+
+```{r}
+dim(titanic)
+str(titanic)
+summary(titanic)
+```
+
+Imputaremos a la mediana algunos valores faltantes de `Age`:
+
+```{r}
+titanic$Age[is.na(titanic$Age)] <- median(titanic$Age, na.rm = T)
+```
+
+Algunos plots:
+
+```{r}
+library(ggplot2)
+
+ggplot(data = titanic, aes(x = Sex, fill = factor(Survived))) + geom_bar(position = 'fill')
+ggplot(data = titanic, aes(x = Pclass, fill = factor(Survived))) + geom_bar(position = 'fill')
+ggplot(data = titanic, aes(x = Fare, fill = factor(Survived))) + geom_density() + facet_grid(Survived ~ .)
+ggplot(data = titanic, aes(x = Age, fill = factor(Survived))) + geom_density() + facet_grid(Survived ~ .)
+
+```
+
+<span style="color:blue"><b>
+Extrae algunas conclusiones de las anteriores gráficas o de un análisis exploratorio más detallado, si lo consideras conveniente.
+</b></span>
+
+## Preprocesado del Dataset
+
+Consideramos la variable `Survived` como variable objetivo y conviértela a factor:
+
+```{r}
+titanic$Survived <- as.factor(titanic$Survived)
+```
+
+Trataremos `Sex` como factor y `Pclass` como factor ordenado
+
+```{r}
+titanic$Sex <- as.factor(titanic$Sex)
+
+titanic$Pclass <- as.ordered(titanic$Pclass) # OJO: http://stats.stackexchange.com/questions/105115/polynomial-contrasts-for-regression
+```
+
+
+## Modelización
+
+Creamos Training y Test, 70% y 30% del dataset titanic, utilizando createDataPartition en la variable Survived. Hemos establecido un valor fijo de la semilla (set.seed = 23) como referencia.
+
+```{r}
+library(caret)
+set.seed(23)
+split <- 0.7
+trainIndex <- createDataPartition(titanic$Survived, p=split, list=FALSE)
+head(trainIndex)
+```
+
+```{r}
+titanic_training <- titanic[trainIndex,]
+titanic_test <- titanic[-trainIndex,]
+```
+
+A partir de ahora solo utilizaremos la partición de training para el ajuste y validación de los modelos.
+
+<span style="color:blue"><b>
+Ajusta un primer modelo glm de regresión logística con las variables Sex, PClass, Fare y haz un summary
+</b></span>
+
+```{r, eval =FALSE}
+first_model <- glm(Survived ~ Sex+Pclass+Fare,
+                   data = titanic_training,
+                   family = binomial(link = 'logit'))
+
+summary(first_model)
+```
+
+
+<span style="color:blue"><b>
+Investiga WTH está ocurriendo con `Pclass`: haz un contrasts de Pclass, lee el link que hay más arriba (donde pone OJO) y "pasa de puntillas"" por la explicación.
+</b></span>
+
+```{r}
+contrasts(titanic$Pclass)
+
+options('contrasts')
+```
+
+
+Por simplicidad usaremos factores no ordenados:
+
+```{r}
+titanic$Pclass_unord <- factor(titanic$Pclass, ordered = FALSE)
+
+titanic_training <- titanic[trainIndex,]
+titanic_test <- titanic[-trainIndex,]
+```
+
+<span style="color:blue"><b>
+Plantea el nuevo modelo con Pclass_unord, ajústalo en training e interpreta los resultados.
+</b></span>
+
+```{r, eval = FALSE}
+first_and_a_half_model <- glm(Survived ~ Pclass_unord+Sex+Age+Fare,
+                   data = titanic_training,
+                   family = binomial(link = 'logit'))
+
+summary(first_and_a_half_model)
+```
+
+<span style="color:blue"><b>
+Plantea un segundo modelo aún más reducido con la variable `FClass`, que refleja si los pasajeros eran de primera clase, además de las variables Sex y Age.
+</b></span>
+
+```{r, eval = FALSE}
+titanic$Fclass <- titanic$Pclass == '1'
+titanic_training <- titanic[trainIndex,]
+titanic_test <- titanic[-trainIndex,]
+```
+
+
+```{r, eval = FALSE}
+second_model <- glm(Survived ~ Fclass+Sex+Age,
+                   data = titanic_training,
+                   family = binomial(link = 'logit'))
+
+summary(second_model)
+```
+
+
+<span style="color:blue"><b>
+Elabora predicciones, haciendo uso de este último modelo, con la función predict en titanic_training y `type = 'response'` (investiga también lo que devuelve la función con los argumentos type = {'link', 'response', 'terms'})
+</b><span>
+
+```{r, eval = FALSE}
+preds_probs_train <- predict(second_model,titanic_training,type='response')
+
+titanic_training <- cbind(titanic_training, preds_probs_train)
+```
+
+<b>¡Las predicciones son probabilidades!</b>
+
+## Evaluación del rendimiento del modelo
+
+Pintamos la curva ROC y su AUC:
+
+```{r, eval = FALSE}
+library(pROC)
+plot.roc(titanic_training$Survived, titanic_training$preds_probs_train, legacy.axes = T, print.thres = T)
+auc(titanic_training$Survived, titanic_training$preds_probs_train)
+
+```
+
+<span style="color:blue"><b>
+Intenta entender la curva y argumenta por qué es conveniente dibujarla en training
+</b></span>
+
+## Cómputo de las predicciones mediante un threshold óptimo.
+
+```{r, eval=FALSE}
+threshold <- 0.409
+titanic_training$survived_prediction <- titanic_training$preds_probs_train > threshold
+table(titanic_training$Survived, titanic_training$survived_prediction)
+```
+
+Esta es la matriz de confusión para un threshold óptimo. 
+
+<span style="color:blue"><b>
+¿Cuál es el accuracy? ¿Cuál es la tasa de verdaderos positivos (TPR)? ¿Cuál es la Sensibilidad o Hit Rate? ¿Cuál es la tasa de falsos positivos (FPR) o False Alarm? ¿Cuál es la Especificidad?
+</b></span>
+
+
+## Validación
+
+Ahora validamos el modelo mediante 10-fold cross validation:
+
+
+```{r, eval = FALSE}
+library(caret)
+set.seed(42)
+
+ctrl <- trainControl(method = 'cv',
+                     number = 10)
+
+model <- train(Survived ~ Sex + Fclass + Age,
+               data = titanic_training,
+               trControl = ctrl,
+               method = 'glm',
+               family = binomial(link = 'logit'))
+
+print(model)
+confusionMatrix(model)
+```
+
+<span style="color:blue"><b>
+Iinterpreta los resultados de la matriz de confusión que se ha obtenido, ¿para qué valor de threshold se ha hecho?
+</b></span>
+
+Pintamos la curva ROC para el modelo obtenido en validación cruzada (la sintaxis es diferente por las paticularidades de usar la función `predict` en objetos `model` de `caret`:
+
+```{r, eval = FALSE}
+probsTrain <- predict(model, titanic_training, type = "prob")
+rocCurve   <- roc(response = titanic_training$Survived,
+                  predictor = probsTrain[, "1"],
+                  levels = rev(levels(titanic_training$Survived)))
+plot(rocCurve, print.thres = "best")
+```
+
+<span style="color:blue"><b>
+Compara cualitativa y cuantitativamente esta curva ROC con las anteriores. ¿Hay diferencias?
+</b></span>
+
+<span style="color:blue"><b>
+Computa las predicciones de Survived para un threshold óptimo
+</b></span>
+
+```{r, eval=FALSE}
+probsTest <- predict(model, titanic_test, type = "prob")
+threshold <- coords(rocCurve, "best", ret = "threshold")
+pred      <- as.factor(probsTest[,'1'] > threshold)
+#levels(pred) <- c(0,1)   # you may or may not need this; I did
+#pred      <- relevel(pred, )   # you may or may not need this; I did
+confusionMatrix(pred, titanic_test$Survived)
+```
+
+Interpretamos los resultados de la matriz de confusion, que ahora se evalúa en test!
+
+## Bonus track: Reanálisis
+
+<span style="color:blue"><b>
+Implementa el análisis de nuevo, realizando la modelización con una selección de variables con ayuda de `stepAIC` o `bestglm`
+</b></span>
+
+```{r}
+model.Intercept <- glm(Survived ~ 1,
+                   data = titanic_training,
+                   family = binomial(link = 'logit'))
+
+model.all <- glm(Survived ~ Pclass_unord + Sex + Age + SibSp + Parch + Ticket + Fare + Embarked,
+                   data = titanic_training,
+                   family = binomial(link = 'logit'))
+
+
+library(MASS)
+model.final <- stepAIC(...)
+```
+ 
+ 

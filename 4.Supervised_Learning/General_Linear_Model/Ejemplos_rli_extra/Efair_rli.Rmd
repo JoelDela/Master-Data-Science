@@ -1,0 +1,271 @@
+---
+title: "Determinando el número de infidelidades con regresión lineal - Fair dataset"
+output:
+  html_document: default
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r setup, warning= FALSE, message=FALSE}
+library(Ecdat)
+library(data.table)
+```
+
+**1.** La librería `Ecdat` de `R` (cuya documentación puedes encontrar aquí) te permite cargar el set de datos Fair. Construye un modelo de regresión lineal que permita predecir nbaffairs (debes realizar el análisis completo: desde la exploración inicial de los datos hasta el ajuste del modelo final y la presentación de resultados, pasando por los diferentes pasos que te permitan optimizar tu primer modelo).
+
+* * * *
+
+####### Extramarital Affairs Data
+
+* a cross-section
+* number of observations : 601
+* observation : individuals
+* country : United States
+
+A dataframe containing:
+
+* sex: a factor with levels (male,female)
+* age: age
+* ym: number of years married
+* child: children ? a factor
+* religious: how religious, from 1 (anti) to 5 (very)
+* education: education:
+    + 9 = grade school
+    + 12 = high school 
+    + 14 = some college 
+    + 16 = college graduate
+    + 17 = some graduate
+    + 18 = master's degree
+    + 20 = PhD/MD or other advanced degree)
+* occupation: occupation, from 1 to 7, according to hollingshead classification (reverse numbering)
+    + 1 = unskilled employee, on welfare, or unemployed,
+    + 2 = machine operator, semi-skilled employee, 
+    + 3 = skilled manual employee, 
+    + 4 = clerical and sales worker, owner of a little business, technician, 
+    + 5 = administrative personnel, proprietor of a small independent business, minor professional, 
+    + 6 = business manager, proprietor of a medium-sized business, lesser professional, 
+    + 7 = higher executive, proprietor of a large concern, major professional)
+* rate: self rating of mariage, from 1 (very unhappy) to 5 (very happy)
+* nbaffairs: number of affairs in past year
+
+```{r loading_data_2}
+Fair <- as.data.table(Fair)
+str(Fair)
+Fair[ , .N, by = sex]
+infieles.age <- Fair[nbaffairs > 0, mean(age) , by = .(sex)]
+infieles.sex.N <- Fair[nbaffairs > 0, .N, by = .(sex)]$N
+infieles.sex.perc <- Fair[nbaffairs > 0, .N, by = .(sex)]$N / Fair[,.N, by = .(sex)]$N
+```
+
+Hay más mujeres que hombres en la base de datos, pero son infieles `r infieles.sex.N[1]` hombres (un `r sprintf("%.1f",100*infieles.sex.perc[1])`%) y `r infieles.sex.N[2]` mujeres (un `r sprintf("%.1f",100*infieles.sex.perc[2])`%).
+
+```{r}
+boxplot(Fair[ , .(age), ], xlab = 'age')$out
+boxplot(Fair[ , .(ym), ], xlab = 'ym')
+boxplot(Fair[nbaffairs > 0, .(ym), ], xlab = 'ym (nbaffairs > 0)')
+```
+
+La edad media de los encuestados es de 32 años, siendo la distribución muy simétrica: media y mediana muy parecidas, primer, tercer cuartil y bigotes prácticamente equidistantes de la mediana (en este sentido la muestra está elegida de manera adecuada). El criterio de bigotes a 1.5 veces el RIC etiqueta como outliers a los encuestados de 57 años. 
+
+La distribución de años de matrimonio (`ym`) es muy asimétrica hacia valores grandes, de mediana en torno a 7 años; mientras que el 50% de la población de los que han sido infieles llevaban casados 10 años o menos.   
+
+```{r}
+unique(Fair$nbaffairs)
+Fair[,.N,by = nbaffairs]
+summary(Fair$nbaffairs[Fair$nbaffairs > 0])
+boxplot(Fair[nbaffairs > 0, nbaffairs,])
+
+```
+
+Los que han sido infieles lo han sido 1, 2, 3, 7 y 12 veces. De los encuestados el `r sprintf("%.0f",100*Fair[,.N,by = nbaffairs]$N[1] / Fair[ , .N])`% declaran no haber sido infieles. Nuestra variable objetivo está bastante despoblada. De media los infieles lo han sido 6 veces aproximadamente (!), el 50% lo han sido menos de 7 veces y salvo por los casos de una única infidelidad que aportan cierta asimetría a la distribución, la variable `nbaffairs` es bastante simétrica.
+
+El resto de variables son categóricas:
+```{r}
+categoricas <- c('religious', 'education', 'occupation', 'rate')
+summary(Fair[, .SD, .SDcols = categoricas])
+Fair[, (categoricas):=lapply(.SD, as.factor), .SDcols = categoricas]
+str(Fair)
+```
+
+La muestra bajo estudio es de personas de religiosidad homogénea, educación y ocupación por encima de la media y que declaran estar relativamente satisfechos con su matrimonio. Hemos convertido a factores las variables categóricas reseñadas.
+
+Análisis de correlaciones:
+```{r}
+cor(Fair[ , c(2,3,9) ,with=FALSE])
+```
+
+La variable objetivo no está correlacionada con ninguno de los posibles predictores numéricos. Solo existe una importante relación entre `age` y `ym`.
+
+Primer intento de ajuste lineal con todas las variables:
+
+```{r}
+model.first <- lm(nbaffairs ~ ., data = Fair)
+summary(model.first)
+```
+
+No es significativo el sexo, ni el hecho de tener hijos, la educación ni el estatus profesional.
+
+```{r}
+model.ayrr <- lm(nbaffairs ~ age + ym + religious + rate, data = Fair)
+summary(model.ayrr)
+plot(Fair$nbaffairs, summary(model.ayrr)$residuals, xlab = 'nbaffairs', ylab = 'Residuos modelo ayrr')
+```
+
+El coeficiente de correlación ajustado no es muy generoso y los residuos presentan una clara dependencia con la variable objetivo. Dibujaremos el total de affairs agrupados según estas cuatro variables para intentar extraer más información.
+
+```{r}
+plot(unique(Fair$age), Fair[ , .(totaffairs = sum(nbaffairs)), by = .(age)]$totaffairs, 
+     xlab = 'age', ylab = 'Total affairs', col = 'red')
+plot(unique(Fair$ym), Fair[ , .(totaffairs = sum(nbaffairs)), by = .(ym)]$totaffairs, 
+     xlab = 'ym', ylab = 'Total affairs', col = 'red')
+plot(unique(Fair$religious), Fair[ , .(totaffairs = sum(nbaffairs)), by = .(religious)]$totaffairs, 
+     xlab = 'religious', ylab = 'Total affairs')
+plot(unique(Fair$rate), Fair[ , .(totaffairs = sum(nbaffairs)), by = .(rate)]$totaffairs, 
+     xlab = 'rate', ylab = 'Total affairs')
+```
+
+Con la edad parece haber un máximo de aventuras extra-matrimoniales a edades medias (de 27 a 42 años). Para reflejar esto el próximo modelo que probamos incluye una componente cuadrática de la variable `age`. Existe un salto importante de aventuras para los casos en los que los años de matrimonio toma su valor máximo, 15 años. Para la escala de religiosidad declarada, es descendente para valores mayores que 2, pero aquellos que se declaran ateos tienen un número muy bajo de infidelidades (también puede ser que haya pocos ateos en la muestra). El número de affairs fluctúa mucho con la satisfacción matrimonial declarada pero en general crece con el grado de satisfacción (!?). Estas aseveraciones no deben tomarse como conclusiones generales ya que surgen de explorar datos agrupados.
+
+```{r}
+model.a2yrr <- lm(nbaffairs ~ I(age^2) + ym + religious + rate, data = Fair)
+summary(model.a2yrr)
+```
+
+Examinando los *p-valores* de cada predictor parece razonable reducir las categorías de religiosidad a dos niveles, los que se declaran muy religiosos (`religious %in% c(4,5)`) y el resto; y las categorías de rating de matrimonio a los que declaran estar satisfechos por encima de un valor promedio (`rate %in% c(3,4,5)`) y el resto. De esta manera la interpretación es más sencilla. A esta misma conclusión se podría haber llegado utilizando algoritmos de búsqueda de modelos óptimos:
+
+```{r message = FALSE}
+library(leaps)
+```
+
+```{r}
+summary(regsubsets(nbaffairs ~ . , data = Fair))
+plot(summary(regsubsets(nbaffairs ~ . , data = Fair))$rsq, xlab = 'predictores', ylab = 'R^2')
+```
+
+No existe un codo claro en la gráfica anterior, así que elegimos el más complejo, `nbaffairs ~ age + ym + religious4,5 + rate2,3,4,5` (incluir también solo `education17` no es fácilmente interpretable). Como se ha dicho, por simplicidad, creamos dos variables que distinguen religiosidad y rating altos (`rel` y `rat`), según:
+
+```{r}
+Fair$rel <- Fair$religious %in% c(4,5)
+Fair$rat <- Fair$rate %in% c(3,4,5)
+
+model.a2yrelrat <- lm(nbaffairs ~ I(age^2) + ym + rel + rat, data = Fair)
+summary(model.a2yrelrat)
+
+```
+
+
+El $R^2$ ajustado sigue siendo muy bajo, el modelo no explica más del 14% de la varianza de los datos, y la dependencia con la variable objetivo de los residuos siguen reflejando que quizá un escenario de regresión lineal no es lo óptimo. De hecho parece más un problema de clasificación, entre infieles y no infieles (procede una regresión logística). Pero a nivel cualitativo las dependencias con los predictores son razonables, el número de affairs va con una parábola invertida de la edad y aumenta cuanto mayor es el número de años de matrimonio, mientras que disminuye si las personas se consideran religiosas y/o satisfechas en su matrimonio.
+
+A continuación estudiamos la influencia de las variable `age` y `ym` en los datos y la posible partición del dataset para mejorar el scoring.
+
+```{r}
+
+Fair[ (nbaffairs > 0), .(tot.aff = sum(nbaffairs)), by = .(age, ym)][order(age)]
+
+sort(unique(Fair$age))
+
+sort(unique(Fair$ym))
+
+plot(Fair$nbaffairs, summary(model.a2yrelrat)$residuals, col = as.factor(Fair$age), 
+     xlab = 'nbaffairs', ylab = 'Residuos modelo a2yrelrat')
+legend('topleft', legend = levels(as.factor(Fair$age)), col = 1:9, cex = 0.8, pch = 1)
+
+plot(hatvalues(model.a2yrelrat), col = as.factor(Fair$ym))
+legend('topleft', legend = levels(as.factor(Fair$ym)), col = 1:8, cex = 0.8, pch = 1)
+```
+
+La agrupación de los residuos según `age` (e `ym`, no mostrado) no sugiere a priori que se puedan dividir los datos en grupos según los valores de estas variables para obtener mejores resultados. Sin embargo, en el gráfico de los *hatvalues* sí se ven dos regiones, una por debajo de 0.010 y otra por encima que pertenece mayoritariamente a valores de `ym` grandes (7, 10, 15).
+
+Probando a dividir los datos en edades y años de matrimonio se llega a los siguientes modelos que optimizan su efectividad en diferentes subsets:
+
+```{r}
+model.yrat.age32_42 <- lm(nbaffairs ~ ym + rat, data = Fair, subset = age %in% c(32, 42))
+summary(model.yrat.age32_42)
+plot(Fair[(age %in% c(32, 42))]$nbaffairs, summary(model.yrat.age32_42)$residuals,
+     col = Fair[(age %in% c(32, 42))]$age, xlab = 'nbaffairs', ylab = 'Residuos modelo yrat.age32_42')
+legend('topleft', legend = levels(as.factor(Fair[(age %in% c(32, 42))]$age)), col = 1:2, cex = 0.8, pch = 1)
+
+model.relrat.age27a42.ymg7 <- lm(nbaffairs ~ rel + rat, data = Fair, subset = age %in% c(27, 32, 42) & ym > 7)
+summary(model.relrat.age27a42.ymg7)
+plot(Fair[age %in% c(27, 32, 42) & ym > 7]$nbaffairs, summary(model.relrat.age27a42.ymg7)$residuals,
+     col =as.factor(Fair[age %in% c(27, 32, 42) & ym > 7]$ym), xlab = 'nbaffairs', ylab = 'Residuos modelo relrat.age27a42.ymg7')
+legend('topleft', legend = levels(as.factor(Fair[age %in% c(27, 32, 42) & ym > 7]$ym)), col = 1:2, cex = 0.8, pch = 1)
+
+```
+
+El mejor modelo lo conseguimos para los que están recién comenzada la crisis de los 30 y los 40, con un $R^2$ cercano al 40% (bastante mejor que con el dataset completo). Este subconjunto lo integran un `r sprintf("%.1f", 100*sum(Fair[(age %in% c(32, 42))]$nbaffairs) / (sum(Fair$nbaffairs)))`% de los infieles. Aquí los predictores más importantes son la satisfacción y los años de matrimonio.
+
+Siendo más finos, modelos de este tipo para los infieles de mediana edad con más de 7 años de matrimonio también explican aprox el 40% de la variabilidad de los datos. Ahora también la religiosidad juega un papel.
+
+* * * *
+**2.** En la construcción del modelo del ejercicio anterior habrás pasado por varios modelos intermedios. Considera el modelo final y un par de esos modelos intermedios y, mediante leave-one-out cross-validation y 10-fold cross-validation, estima su capacidad predictiva en situaciones reales y justifica si tu elección en el ejercicio anterior era acertada o no.
+
+* * * *
+
+Elegimos tres modelos que ajustan todo el Dataset:
+
+* `nbaffairs ~ ym + rel` de `MSE = ` `r mean(summary(lm(nbaffairs ~ ym + rel, data = Fair))$residuals^2)`
+
+* `nbaffairs ~ ym + rel + rat` de `MSE = ` `r mean(summary(lm(nbaffairs ~ ym + rel + rat, data = Fair))$residuals^2)`
+
+* `nbaffairs ~ I(age^2) + ym + rel + rat` de `MSE = ` `r mean(summary(lm(nbaffairs ~ I(age^2) + ym + rel + rat, data = Fair))$residuals^2)`
+ 
+Y realizamos el proceso de *Leave One Out Cross Validation*
+
+```{r}
+# LOOCV
+err_1 <- c()
+err_2 <- c()
+err_3 <- c()
+err_4 <- c()
+for(i in 1:nrow(Fair)){
+  mod_1 <- lm(nbaffairs ~ ym + rel, data = Fair[-i,])
+  mod_2 <- lm(nbaffairs ~ ym + rel + rat, data = Fair[-i,])
+  mod_3 <- lm(nbaffairs ~ I(age^2) + ym + rel + rat, data = Fair[-i,])
+  err_1 <- c(err_1, (Fair$nbaffairs[i]-predict(mod_1, Fair[i,]))**2)
+  err_2 <- c(err_2, (Fair$nbaffairs[i]-predict(mod_2, Fair[i,]))**2)
+  err_3 <- c(err_3, (Fair$nbaffairs[i]-predict(mod_3, Fair[i,]))**2)
+}
+mean(err_1)
+mean(err_2)
+mean(err_3)
+```
+
+El modelo `nbaffairs ~ I(age^2) + ym + rel + rat`, el más complejo y que resultaba mejor en la muestra completa resulta ser el que mejor capacidad predictiva posee (menor error cuadrático medio) según *LOOCV*.
+
+El método *10-fold cross validation* arroja los siguientes resultados:
+
+```{r}
+# 10-fold CV
+set.seed = 23
+mat <- matrix(nrow = 0, ncol = 6)
+colnames(mat) <- c('mse_train_1', 'mse_test_1', 'mse_train_2', 'mse_test_2', 'mse_train_3', 'mse_test_3')
+Fair$fold <- sample(1:10, size = nrow(Fair), replace = TRUE)
+for(i in 1:10){
+  training_data <- Fair[Fair$fold != i, ]
+  test_data <- Fair[Fair$fold == i, ]
+  mod_1 <- lm(nbaffairs ~ ym + rel, data = training_data)
+  mod_2 <- lm(nbaffairs ~ ym + rel + rat, data = training_data)
+  mod_3 <- lm(nbaffairs ~ I(age^2) + ym + rel + rat, data = training_data)
+  mse_train_1 <- mean((mod_1$residuals)**2)
+  mse_train_2 <- mean((mod_2$residuals)**2)
+  mse_train_3 <- mean((mod_3$residuals)**2)
+  mse_test_1 <- mean((test_data$nbaffairs-predict(mod_1, test_data))**2)
+  mse_test_2 <- mean((test_data$nbaffairs-predict(mod_2, test_data))**2)
+  mse_test_3 <- mean((test_data$nbaffairs-predict(mod_3, test_data))**2)
+  mat <- rbind(mat, c(mse_train_1,
+                      mse_test_1,
+                      mse_train_2,
+                      mse_test_2,
+                      mse_train_3,
+                      mse_test_3))
+}
+mat <- as.data.frame(mat)
+colMeans(mat)
+```
+
+El modelo intermedio `nbaffairs ~ ym + rel + rat`,  es el que presentan mejor capacidad predictiva, menor *MSE* en las muestras de test, según *10-fold CV*.
+
+Ambos métodos de validación destacan que el modelo de mayor complejidad, `nbaffairs ~ I(age^2) + ym + rel + rat`, resulta ser un ejemplo de *overfitting*, ajusta muy bien en las muestras de training pero es peor en los tests, con un *MSE* prácticamente idéntico al modelo intermedio.
+
+* * * *

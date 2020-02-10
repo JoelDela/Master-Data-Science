@@ -1,0 +1,334 @@
+echo Hola
+echo Hola hola
+echo "Hola hola"
+echo $SHELL
+echo $TERM
+MASTER=DS
+echo $MASTER
+whoami
+echo $HOST
+echo $USER
+printenv
+printenv HOST
+cat .bashrc | less
+echo "Hola Hola"
+echo "Hola $MASTER"
+echo 'Hola $MASTER'
+echo `date`
+echo "date"
+echo 'date'
+date
+echo "the date is $date"
+echo "the date is $(date)"
+echo 'the date is $(date)'
+echo the date is $(date)
+echo "world \
+is mine\
+and hello"
+echo "world" \\
+and this
+echo "thosdjhgksdjfng\
+\
+\
+
+echo backslash \
+echo backslash \\ 
+echo "hello \" world" 
+echo "hello " world" 
+echo "hello\tworld" 
+echo "hello\nworld" 
+bash
+echo "hello\th"
+echo hello \t h
+echo hello \n h
+echo $SHELL
+echo $0
+echo $0
+bash
+echo kjhkjhn\
+echo This ; echo That
+echo This \; echo That
+cat /etc/os-release
+cat /proc/cpuinfo
+ll
+cat -n .bashrc
+cd Repos
+git clone [200~https://github.com/IgorAramb/DS_CL_files.git
+git clone https://github.com/IgorAramb/DS_CL_files.git
+cd DS_CL_files
+ls
+git log
+cd shell
+cat Text_example.txt
+cat -n Text_example.txt Text_example.txt Text_example.txt
+cat Finn.txt Text_example.txt 
+cat ../opentraveldata/optd_aircraft.csv 
+cat ../../DS_CL_files/shell/Text_example.txt
+pwd
+cat /home/dsc/Repos/DS_CL_files/shell/Text_example.txt
+cat ~/Repos/DS_CL_files/shell/Text_example.txt
+cd 
+cd -
+cd ../
+cd ..
+cd ./
+cd 
+cd .config
+ls 
+cd ..
+ls 
+ls -1
+ls -s
+ls -s -1
+ls -s1
+ls -1s
+ls -H
+ls -a
+ls -l
+cd Downloads
+ls
+ll
+cd ..
+ls Downloads
+ll Downloads
+ls first_dir
+ls Public
+ls sabado
+ll
+ls -lt
+ls -ltr
+ls -lSr
+alias
+alias gs = "git status"
+alias gs="git status"
+alias
+cd Repos/DS_CL_files
+gs
+cd Repos/DS_CL_files
+ls -l
+chmod u+x README.md
+chmod u-w README.md
+ll README.md
+chmod u+w, g+x,o-r README.md
+chmod u+w,g+x,o-r README.md
+ll README.md
+chmod 757 README.md
+ll README.md
+cd
+mkdir DIRECTORY
+cd DIRECTORY
+mkdir one two three
+ll
+mkdir four/five/six
+mkdir -p four/five/six
+cd four
+ll
+cd five
+ll
+cd ../../../
+cd DIRECTORY
+touch file_one
+ll
+cd
+ll
+touch example_unique.txt
+ll
+cd DIRECTORY
+cp file_one file_copy
+ll
+cp -r four five
+ll
+ls five
+touch tres
+cp tres file_copy file_one two
+cp tres file_copy file_one
+chmod 777 tres
+ll tres
+cp tres tres.copy1
+ll tres tres.copy1 
+cp -p tres tres.copy2
+ll tres tres.copy1 tres.copy2 
+mv five new_file
+ll
+mv file_one new_file_name
+ll
+rm file_copy
+rm -r four
+rm -fr new_file
+cd
+mkdir first_dir
+rm first_dir
+rm -rf first_dir
+mkdir first_dir
+cd first_dir
+touch text_file.txt
+ll
+chmod g+x,o+w text_file.txt
+ll
+mkdir sub1 sub2 text_file
+ll
+cp text_file.txt sub1
+ll sub1
+mv text_file.txt sub2
+mv sub2/text_file.txt .
+ll
+mv text_file.txt sub2/text_file.txt.2
+cp -r sub1 sub3 
+ll
+ll sub3 
+cp -r sub1 sub3 
+ll sub
+ll sub3
+mv sub2/text_file.txt.2 sub2/text_file.txt.backup
+mv sub2/text_file.txt.backup ./.text_file.txt.backup
+rm -rf sub2
+ll
+ls -a
+man bash
+man ls
+man cat
+man cp
+cat --help
+cat -h
+bash -h
+cd
+cd Repos/DS_CL_files/shell
+less Finn.txt
+less -N Finn.txt
+man ls
+less -N Text_example.txt
+less -N Finn.txt
+less -N -S Finn.txt
+cd ../opentraveldata
+ll
+less optd_airlines.csv
+less optd_por_public.csv
+less -N optd_por_public.csv
+less -N -S optd_por_public.csv
+cd
+type ll
+type cd
+type git
+type python
+which python
+whereis python
+which -a python
+which pytho
+which python
+sudo which python
+sudo which pip
+which pip
+sudo which pip
+nfdlkfdjglkj
+jkhkjhk jkjh kjh kjh kj hkjh kj 
+git remote add origin https://github.com/IgorAramb/DS_CL_files.git
+cat .history
+history
+history -100
+history -10
+history 10
+echo $HISTFILE
+tail .history
+cat .history | tail
+cat -n .history | tail
+tail .bashrc
+cd Repos/DS_CL_files
+cd opentraveldata
+cat -n optd_aircraft.csv | tail
+cat -n optd_aircraft.csv | tail -3
+cat -n optd_aircraft.csv | tail -n 3
+cat -n optd_aircraft.csv | tail 3
+cat -n optd_aircraft.csv | tail -n +450
+cat -n optd_aircraft.csv| head 3
+cat -n optd_aircraft.csv| head -3
+cat -n optd_aircraft.csv| head -n 3
+cat -n optd_aircraft.csv| head -n +40
+cat -n optd_aircraft.csv| head -n -40
+cat -n optd_aircraft.csv| head -n -450
+wc optd_airlines.csv
+wc -l optd_aircraft.csv
+wc - optd_aircraft.csv
+wc c- optd_aircraft.csv
+wc -c optd_aircraft.csv
+wc -w optd_aircraft.csv
+cat optd_aircraft.csv | wc -l
+wc -l optd_aircraft.csv
+ls 
+ls | wc
+ls -1 | wc
+ls -1
+ls -1 |wc
+ls -1 |wc | wc
+cat -n optd_aircraft.csv| head -10 
+cat -n optd_aircraft.csv| head -10 >first_10_lines.txt
+cat first_10_lines.txt
+cat -n optd_aircraft.csv| head -10 >first_10_lines.txt
+cat -n optd_aircraft.csv| head -10 >>first_10_lines.txt
+cat first_10_lines.txt
+wc -l < first_10_lines.txt
+wc -l first_10_lines.txt
+ls -l
+ls -ls
+ls -ls | tail -n 1
+ls -ls | tail -n 1 > largestf_file.txt
+cat largestf_file.txt
+cd ../shell
+head -n 5 Finn.txt
+head -n 5 Finn.txt|wc 
+head -n 5 Finn.txt|wc -w
+cat -n Text_example.txt | head -n 3
+cd
+find | wc
+cd -
+find | wc
+find
+cd ..
+find
+find | wc
+find . |wc
+find ./shellc
+find ./shell
+cd
+find . -name "text_file*"
+find . -iname "Text_file*"
+find . -name "Text_file*"
+find . -iname "Text_file*"
+find . -iname -type f "Text_file*"
+find . -type f -iname "Text_file*"
+find . -type d -iname "Text_file*"
+find . -maxdepth 5 -type d -iname "Text_file*"
+find . -maxdepth 5 -type f -iname "Text_file*"
+find 2018-04-27.txt 2019-05-11.txt anaconda3 Data Desktop DIRECTORY Documents Downloads DS_CL_files example_unique.txt first_dir Music my_scripts Pictures Public python_class Repos sabado Templates test_file Untitled\ Folder Videos vm-config-master  -maxdepth 0 -type f -iname "Text_file*"
+find .* -iname "*b*"
+find .* -maxdepth 0 -iname "*b*"
+find . -maxdepth 5 -mindepth 1 -type f -iname "Text_file*"
+find . -mindepth 1 -type f -iname "Text_file*" -maxdepth 5
+find . -type f -perm 777 -name "text_file*"
+find . -type f ! -perm 777 -name "text_file*"
+find . -maxdepth 5 -empty
+find . -maxdepth 5 -not empty
+find . -maxdepth 5 -not -empty |wc
+find . -maxdepth 5 -size 0
+find . -maxdepth 5 -size 10M
+ll ./anaconda3/pkgs/mkl-2019.1-144/lib/libmkl_gf_ilp64.so
+find . -maxdepth 5 -size +10M | wc
+find . -maxdepth 5 -size -10M | wc
+find . -mmin -60
+find . -mmin 60
+find . -mtime 1
+find . -maxdepth 5 -type d -iname "Text_file*"
+find . -maxdepth 5 -type f -iname "Text_file*"
+find . -maxdepth 5 -type f -iname "Text_file*" | wc
+find . -maxdepth 5 -type f -iname "Text_file*" -exec echo "FOUND IT" \;
+find . -maxdepth 5 -type f -iname "Text_file*" -exec ls -l {} \;
+ls -l ./Data/shell/zip_files/text_files.zip
+find . -maxdepth 5 -type f -iname "Text_file*" -exec ls -s {} \;
+find . -maxdepth 5 -type f -iname "Text_file*" -exec ls -s  \;
+ls -s 2018-04-27.txt
+find . -maxdepth 5 -type f -iname "Text_file*" -exec echo ls -s  \;
+find . -maxdepth 5 -type f -iname "Text_file*" -exec echo ls -s {} \;
+find . -maxdepth 5 -type f -iname "Text_file*" -exec ls -s {} \; -exec head -2 {} \;
+find . -maxdepth 5 -type f -iname "Text_file*" -exec ls -s {} | wc \;
+find . -maxdepth 5 -type f -iname "Text_file*" -exec sh -c "ls -s {} | wc" \;
+find . -maxdepth 5 -type f -iname "Text_file*" -exec ls -l {} \; -exec sh -c "ls -s {} | wc" \;
+cat .history > 20191019.txt

@@ -1,0 +1,306 @@
+seq 1 10
+seq 1 10 2
+seq 1 2 10
+seq 1 10 > uniq_example.txt
+seq 1 10 >> uniq_example.txt
+cat ./uniq_example.txt
+uniq uniq_example.txt
+sort uniq_example.txt
+sort uniq_example.txt|uniq
+sort uniq_example.txt|uniq -d
+sort uniq_example.txt|uniq -c
+sort uniq_example.txt|uniq -d
+seq 20 25  >> uniq_example.txt
+sort uniq_example.txt|uniq -d
+sort uniq_example.txt
+sort -n uniq_example.txt
+sort -n -r uniq_example.txt
+sort -nr uniq_example.txt
+sort -nr uniq_example.txt uniq_example.txt
+sort -nr uniq_example.txt uniq_example.txt uniq_example.txt | uniq 
+sort -u uniq_example.txt
+cd Data/opentraveldata
+ls
+git remote show
+git remote -v
+cd 
+ll
+cd Repos
+ll
+cd DS_CL_files
+git remote show
+git remote -v
+cd -
+cd ..
+cd Data/opentraveldata
+ll
+head ./optd_aircraft.csv
+sort -t "^" -k6 optd_aircraft.csv | head
+sort -t "^" -k6r optd_aircraft.csv | head
+sort -t "^" -k6r,6 optd_aircraft.csv | head
+sort -t "^" -k6r optd_aircraft.csv | head
+sort -t "^" --key=6r,6 optd_aircraft.csv | head
+sort -t "^" -k2,2 -k7,7 optd_aircraft.csv | head
+sort -t "^" -k2,2 -k7r,7 optd_aircraft.csv | head
+sort -t "^" -k2,2 -k7,7 optd_aircraft.csv | head
+sort -t "^" -k2r,2 -k7,7 optd_aircraft.csv | head
+sort -t "^" -k2r,2 -k7r,7 optd_aircraft.csv | head
+sort -t "^" --key=6r,6 --key=2,2 optd_aircraft.csv | head
+seq 15
+ll
+cat 20lines.txt
+seq 15> 20lines.txt; seq 9 1 20 >> 20lines.txt; echo"20\n20" >> 20lines.txt;
+seq 15> 20lines.txt; seq 9 1 20 >> 20lines.txt; echo "20\n20" >> 20lines.txt;
+cat 20lines.txt
+sort -d 20lines.txt
+sort -n 20lines.txt
+sort -nu 20lines.txt
+sort -n 20lines.txt | uniq -d
+sort -n 20lines.txt | uniq -c
+sort -n 20lines.txt | uniq -c | tail -1
+sort -n 20lines.txt | uniq -c | sort 
+sort -n 20lines.txt | uniq -c | sort -n
+sort -n 20lines.txt | uniq -c | sort -nr
+sort -n 20lines.txt | uniq -c | sort -t " " k8,8
+sort -n 20lines.txt | uniq -c | sort -t " " -k8,8
+sort -n 20lines.txt | uniq -c | sort -t " " -k7,7
+sort -n 20lines.txt | uniq -c | sort -t " " -k7r,7
+sort -n 20lines.txt | uniq -c | sort
+cut -d "^" -f 1-3,5 optd_aircraft.csv| head
+head optd_aircraft.csv| head
+head optd_aircraft.csv
+cut -d "^" -f 1-3,5 optd_aircraft.csv| head
+head optd_aircraft.csv
+cut -d "^" -f 1-3,5 --output-delimiter="^"  optd_aircraft.csv 
+cut -d "^" -f 1-3,5 --output-delimiter="^"  optd_aircraft.csv |head
+cut -d "^" -f 1-3,5 --output-delimiter=";"  optd_aircraft.csv |head
+cut -d "^" -f 1-3,5 --output-delimiter="BBBBBBB"  optd_aircraft.csv |head
+cut -d "^" -f 1-3,5 --output-delimiter="^ "  optd_aircraft.csv |head
+head optd_aircraft.csv | tr "^" ";"
+echo "master data science" | tr at TA
+echo " master      data     science" | tr -s
+echo " master      data     science" | tr -s " "
+echo " massssssster      data     science" | tr -s "s"
+echo " massssssster      data     science" | tr -s "s "
+echo " massssssster      data     science" | tr -d "s "
+echo " massssssster      data     science" | tr -dc "s "
+echo " master      data     science" | tr -s [:blank:]
+echo " master      data     science" | tr -s "[:blank:]"
+echo " master      data     science" | tr -s "[:lower:]" "[:upper:]"
+echo " master  234234    data  343   s12cience" | tr -d "[:digit:]"
+seq 10 > numbers
+paste numbers
+paste numbers numbers
+cat numbers numbers
+paste numbers numbers
+cat numbers numbers
+man paste
+paste -s numbers
+paste -s numbers numbers
+paste -s -d "^" numbers numbers
+paste - - - numbers
+paste --- numbers
+cat numbers| paste - - - 
+cat numbers| paste - - 
+cd ../shell
+cat Text_example.txt
+seq 10 >numbers
+paste numbers Text_example.txt
+paste Text_example.txt Text_example.txt
+paste numbers Text_example.txt
+wc <Text_example.txt
+wc Text_example.txt
+paste <numbers <Text_example.txt
+paste <(cat numbers) <(cat Text_example.txt)
+paste <(seq 15)  <(cat Text_example.txt)
+echo '1\n2'
+echo '1\t2'
+echo '12$HOME'
+echo "12$HOME"
+echo '1\n2'
+echo -e "1\n2"
+cd ../opentraveldata
+ll
+cat optd_aircraft.csv| tr "^" ",">optd_airlines_comma.csv 
+head optd_airlines_comma.csv
+head -1 optd_por_public.csv
+head -1 optd_por_public.csv | tr "^" "\n"
+head -1 optd_por_public.csv | tr "^" "\n" | wc -l 
+head -1 optd_por_public.csv | tr "^" "\n"
+paste <(seq 46) <(head -1 optd_por_public.csv | tr "^" "\n")
+cd -
+grep this Text_example.txt
+cat Text_example.txt
+grep -v this Text_example.txt
+grep -i this Text_example.txt
+grep -in this Text_example.txt
+grep -c this Text_example.txt
+grep -ci this Text_example.txt
+grep this Text_example.txt
+grep -A 2 this Text_example.txt
+grep -A 2 THIS Text_example.txt
+grep -B 2 THIS Text_example.txt
+grep -nB 2 THIS Text_example.txt
+grep -nC 2 THIS Text_example.txt
+grep -nC 2 THIS Text_example.txt Text_example.txt.copy
+grep -n THIS Text_example.txt Text_example.txt.copy
+cat Text_example.txt.copy
+grep -n LINE Text_example.txt Text_example.txt.copy
+grep -E  "^LINE" Text_example.txt Text_example.txt.copy
+grep -E  "^THIS" Text_example.txt Text_example.txt.copy
+grep THIS Text_example.txt Text_example.txt.copy
+grep -iE "^THIS" Text_example.txt Text_example.txt.copy
+grep -i THIS Text_example.txt Text_example.txt.copy
+grep -iE "^THIS" Text_example.txt Text_example.txt.copy
+grep -i THIS Text_example.txt Text_example.txt.copy
+cd -
+ll
+head optd_airlines.csv
+cut -d "^" -f 8 |head
+cut -d "^" -f 8 ./optd_airlines.csv|head
+cut -d "^" -f 8 ./optd_airlines.csv| grep -iE "^Aero"
+cut -d "^" -f 8 ./optd_airlines.csv| grep -iE "^Aero" | wc -l 
+cut -d "^" -f 8 ./optd_airlines.csv| grep -i "^Aero" | wc -l 
+cut -d "^" -f 8 ./optd_airlines.csv| grep -i "[0-9]" | wc -l 
+echo Sunday | sed ssdaysnights
+echo Sunday | sed s/day/night/
+echo day.day | sed s/day/night/
+echo day.day | sed s/day/night/g
+echo Sunday | sed s/day/n/
+echo day.day | tr day ppp
+echo day.day | tr day p
+cd -
+cp Text_example.txt Text_example.txt.copy
+cat Text_example.txt.copy
+sed -i s/this/THAT/g Text_example.txt 
+cat Text_example.txt
+man sed
+seq 5 | sed 
+seq 5 | sed -n '2p;4p'
+seq 5 | sed -n '2,4p'
+seq 5 | sed '2,4p'
+seq 5 | sed -n '2,4p'
+seq 5 10 | sed '3d'
+sed -i '3d' Text_example.txt
+sed -n '3p' Text_example.txt
+sed -n '2p' Text_example.txt
+sed -n '2p' Text_example.txt > linead_con_problema.txt
+seq 5 10 | sed '/8/d'
+cat Text_example.txt
+cp Text_example.txt.copy Text_example.txt
+cat Text_example.txt
+ll
+rm -rf tar_files zip_files
+ll
+rm uncompressed.tar compressed_zipped.tar
+ll
+sed 's/line/\n/g' Text_example.txt
+zip Text_files.zip Finn.txt Text_example.txt
+ll
+unzip -l Text_files.zip
+zcat Text_files.zip| head
+zcat Text_files.zip| tail
+unzip -c Text_files.zip Text_example.txt| less
+unzip -c Text_files.zip Text_example.txt
+zless Text_files.zip
+zgrep Finn Text_files.zip
+mkdir unzipped_files
+mv Text_files.zip unzipped_files
+cd unzipped_files
+unzip Text_files.zip
+ll
+cd ..
+gzip Finn.txt Text_example.txt Text_example.txt.copy 
+ll
+zcat Text_example.txt.gz
+zless Finn.txt.gz
+gunzip Finn.txt.gz Text_example.txt.copy.gz Text_example.txt.gz 
+ll
+bzip2 2x_text.txt Finn.txt hello-world.txt linead_con_problema.txt numbers.txt Text_example.txt Text_example.txt.copy 
+ll
+bzcat Text_example.txt.bz2
+bunzip2 2x_text.txt.bz2 Finn.txt.bz2 hello-world.txt.bz2 linead_con_problema.txt.bz2 numbers.txt.bz2 Text_example.txt.bz2 Text_example.txt.copy.bz2 
+ll
+tar -cvf Texfiles.tar 2x_text.txt Finn.txt hello-world.txt linead_con_problema.txt numbers.txt Text_example.txt 
+ll
+tar -czvf Texfiles.tar.zip 2x_text.txt Finn.txt hello-world.txt linead_con_problema.txt numbers.txt Text_example.txt 
+tar -cjvf Texfiles.tar.zip 2x_text.txt Finn.txt hello-world.txt linead_con_problema.txt numbers.txt Text_example.txt 
+ll
+tar -czvf Texfiles.tar.zip 2x_text.txt Finn.txt hello-world.txt linead_con_problema.txt numbers.txt Text_example.txt 
+tar -cjvf Texfiles.tar.bz2 2x_text.txt Finn.txt hello-world.txt linead_con_problema.txt numbers.txt Text_example.txt 
+ll
+mkdir tarzip
+mkdir tarbz2
+mkdir tar
+mv Texfiles.tar tar
+mv Texfiles.tar.zip tarzip
+mv Texfiles.tar.bz2 tarbz2
+cd tar
+tar -x Texfiles.tar
+tar -xf Texfiles.tar
+tar -fx Texfiles.tar
+ll
+cd ../tarbz2
+tar -xf Texfiles.tar
+tar -xf Texfiles.tar.bz2
+ll
+cd ../tarzip
+tar -xf Texfiles.tar.zip
+ll
+cd ../../opentraveldata
+ll
+head -1 optd_por_public.csv | tr "^" "\n" | wc -l 
+paste <(seq 46) <(head -1 optd_por_public.csv | tr "^" "\n")
+history 
+touch column_line_number.sh
+ll
+mv column_name_number.sh ../
+ll
+nano
+nano ./column_line_number.sh
+history 
+cat ./column_line_number.sh
+bash .column_line_number.sh.swp
+bash .column_line_number.sh
+bash ./column_line_number.sh
+./column_line_number.sh
+chmod 777 ./column_line_number.sh
+ll
+./column_line_number.sh
+which bash
+cat ./numbers
+cat ./column_line_number.sh
+./column_line_number.sh
+zsh ./column_line_number.sh
+cat ./column_line_number.sh
+./column_line_number.sh
+echo $0
+./column_line_number.sh one two three
+./column_line_number.sh "^" fichero
+./column_line_number.sh "^" ./optd_aircraft.csv
+echo `date`
+echo "$(date)"
+./column_line_number.sh "^" ./optd_aircraft.csv
+TEST=kjhkjhkjhk
+echo $TEST
+echo $TESThgf 
+echo ${TEST}hgf 
+./column_line_number.sh "^" ./optd_aircraft.csv
+ll
+cd
+ll
+column_line_number.sh
+mkdir private_scripts
+mv Data/opentraveldata/column_line_number.sh private_scripts
+ll private_scripts
+echo $PATH
+echo $PATH | tr : \n
+echo $PATH | tr : "\n"
+echo $PATH:~/private_scripts | tr : "\n"
+PATH=$PATH:~/private_scripts
+echo $PATH | tr : "\n"
+nano .zshrc
+cd Data/opentraveldata/
+./column_line_number.sh "^" ./optd_aircraft.csv
+column_line_number.sh "^" ./optd_aircraft.csv
+cd

@@ -1,0 +1,426 @@
+---
+title: "Regularization. Ridge and Lasso."
+author: "Maria Hernandez Rubio"
+output: html_document
+---
+
+```{r general libraries, message=FALSE}
+
+library(glmnet) #linear regression
+library(e1071) #naive bayes
+
+# misc
+library(ggplot2)
+library(dplyr)
+library(caret)
+
+```
+
+
+In this notebook we are going to see the efect of regularization on Linear Regression. We will be using synthetic data first, and football players data afterwards. 
+
+
+
+### Load linear regression with regularization library
+
+```{r load regression libraries, message=FALSE}
+library(glmnet)
+```
+
+### `glmnet` package
+
+This package performs linear regression with regularization. The documentation can be found in the [R package documentation](https://cran.r-project.org/web/packages/glmnet/index.html). It has been developed by professors at Stanford University, and authors of "The Elements of Statistical Learning" book, one of the basic of Machine Learning. 
+
+It does not only fit Linear Regression, but logisctic, multinomial, poisson and Cox regression as well. 
+
+Main function is `glmnet`, that solves the following problem:
+$$
+\min_{\beta_0,\beta} \frac{1}{N} \sum_{i=1}^{N} w_i \, l(y_i,\, \beta_0+\beta^T \textbf{x}_i) + \lambda\left[(1-\alpha) \, ||\beta||_2^2/2 + \alpha \, ||\beta||_1\right],
+$$
+
+
+```
+glmnet(x, y, family=c("gaussian","binomial","poisson","multinomial","cox","mgaussian"),
+    weights, offset=NULL, alpha = 1, nlambda = 100,
+    lambda.min.ratio = ifelse(nobs<nvars,0.01,0.0001), lambda=NULL,
+    standardize = TRUE, intercept=TRUE, thresh = 1e-07,  dfmax = nvars + 1,
+    pmax = min(dfmax * 2+20, nvars), exclude, penalty.factor = rep(1, nvars),
+    lower.limits=-Inf, upper.limits=Inf, maxit=100000,
+    type.gaussian=ifelse(nvars<500,"covariance","naive"),
+    type.logistic=c("Newton","modified.Newton"),
+    standardize.response=FALSE, type.multinomial=c("ungrouped","grouped"))
+```
+
+
+* It automatically searches for several `lambda`s, the regularization parameter. 
+* `alpha` plays an important role, because it's the mechanism to choose between Ridge (`alpha=0`) and Lasso (`alpha=1`).
+* Linear regression corresponds to `family='gaussian'` (the default) ($w_i=1/2$). It has to do with the relation between Regularized Linear Regression and Bayesian Gaussian Estimation (not covered in the course).
+* `standardize=TRUE` by default.
+
+
+## First problem
+
+We will analyze the effect of regularization on generated data, where we can control how the data is correlated. 
+
+Data is $y=X\beta + \epsilon$, where $\epsilon$ represents a Gaussian noise $\epsilon ~ N(0,I)$. The difference in the models is how the $\beta$ is. 
+
+* $N$=number of data points
+* $P$=dimension of Beta
+* $p$=number of true predictors: $\beta = (1, \dots_p, 1, 0, \dots_{P-p}, 0)^T$
+
+### 1. Small signal. Lots of noise
+
+We now have many $\beta$ which are 0, so we will only have noise. 
+
+* p=15
+* n=1000
+
+```{r generate data 1}
+n <- 1000  # Number of observations
+p <- 5000  # Number of predictors included in model
+real_p <- 15  # Number of true predictors
+
+#x <- data.frame(matrix(rnorm(n*p), nrow=n, ncol=p)
+
+x <- matrix(rnorm(n*p), nrow=n, ncol=p)
+#y <- rowSums(x[,1:real_p]) + rnorm(n)
+y <- apply(x[,1:real_p], 1, sum) + rnorm(n)
+
+# Split data into train (2/3) and test (1/3) sets
+train_rows <- sample(1:n, .66*n)
+x.train <- x[train_rows, ]
+x.test <- x[-train_rows, ]
+
+y.train <- y[train_rows]
+y.test <- y[-train_rows]
+```
+
+
+```{r metrics}
+RMSE <- function(response, predicted){
+  return (sqrt(mean((response-predicted)^2, na.rm = TRUE)))
+}
+
+MSE <- function(response, predicted){
+  return (mean((response-predicted)^2, na.rm = TRUE))
+}
+```
+
+
+### Fit Linear Regression
+
+```{r linear regression}
+df_ <- data.frame(x.train, y=y.train)
+df_test_ <- data.frame(x.test, y=y.test)
+fit.linear <- lm(y ~ .,  data = df_) #
+#predict.linear <- predict(fit.linear, newdata = data.frame(x.test))
+predict.linear <- predict(fit.linear, newdata =df_test_)
+
+rmse = RMSE(predict.linear, y.test)
+mse = MSE(predict.linear, y.test)
+
+```
+
+```{r performance regression residuals}
+hist(fit.linear$residuals, breaks = 30) # normally distributed :)
+```
+
+### Fit Regularized Linear Regression
+
+```{r regularized LR}
+fit.lasso <- glmnet(x.train, y.train, family="gaussian", alpha=1)
+fit.ridge <- glmnet(x.train, y.train, family="gaussian", alpha=0)
+```
+
+```{r plot regularized LR}
+par(mfrow=c(1,2))
+plot(fit.lasso, xvar="lambda")
+plot(fit.ridge, xvar="lambda")
+```
+
+
+```{r performance lrl 1}
+y.pred.lasso <- predict(fit.lasso, newx = x.test, type = "response", s = 0.1)
+y.pred.ridge <- predict(fit.ridge, newx = x.test, type = "response", s = 0.1)
+
+rmse.lasso <- RMSE(y.pred.lasso, y.test)
+mse.lasso <- MSE(y.pred.lasso, y.test)
+
+rmse.ridge <- RMSE(y.pred.ridge, y.test)
+mse.ridge <- MSE(y.pred.ridge, y.test)
+
+print (paste0('Linear Regression. RMSE=', round(rmse,2), ', MSE=', round(mse,2)))
+print (paste0('Lasso. RMSE=', round(rmse.lasso,2), ', MSE=', round(mse.lasso,2)))
+print (paste0('Ridge RMSE=', round(rmse.ridge,2), ', MSE=', round(mse.ridge,2)))
+```
+
+```{r coefficients lrl 1}
+sum(coef(fit.ridge, s=0.1)>0)
+sum(coef(fit.lasso, s=0.1)>0)
+```
+
+**Cross-Validation**
+
+```{r cv lrl 1}
+lasso.cv <- cv.glmnet(x.train, y.train, alpha = 1) # CV to obtain best lambda
+ridge.cv <- cv.glmnet(x.train, y.train, alpha = 0) # CV to obtain best lambda
+
+par(mfrow=c(1,2))
+plot(lasso.cv, main="LASSO")
+plot(ridge.cv, main="Ridge")
+```
+
+
+```{r performance lrl 1 cv}
+y.pred.lasso <- predict(lasso.cv, s = lasso.cv$lambda.1se, newx = x.test, type = "response")
+y.pred.ridge <- predict(ridge.cv, s = ridge.cv$lambda.1se, newx = x.test, type = "response")
+
+rmse.lasso.opt <- RMSE(y.pred.lasso, y.test)
+mse.lasso.opt <- MSE(y.pred.lasso, y.test)
+
+rmse.ridge.opt <- RMSE(y.pred.ridge, y.test)
+mse.ridge.opt <- MSE(y.pred.ridge, y.test)
+
+print (paste0('Linear Regression. RMSE=', round(rmse,2), ', MSE=', round(mse,2)))
+print (paste0('Lasso. RMSE=', round(rmse.lasso,2), ', MSE=', round(mse.lasso,2)))
+print (paste0('Lasso OPT. RMSE=', round(rmse.lasso.opt,2), ', MSE=', round(mse.lasso.opt,2)))
+print (paste0('Ridge RMSE=', round(rmse.ridge.opt,2), ', MSE=', round(mse.ridge.opt,2)))
+print (paste0('Ridge OPT RMSE=', round(rmse.ridge.opt,2), ', MSE=', round(mse.ridge.opt,2)))
+
+```
+
+### Exercise
+Reproduce the previous example but with:
+
+* p=1500
+* $\beta=(10, 10, 5, 5, 1, \dots_{10}, 1, 0, \dots_{36}, 0)$ and $N=100$ data points. And $Cov(X_i, X_j) = 0.7^{|i-j|}
+
+
+
+## Second problem
+
+We want to estimate the market value of a player, based on some of his attributes. 
+
+## Load data
+
+```{r load data}
+#train <- read.csv("data/Train_rev1.csv")
+#test <- read.csv("data/Test_rev1.csv")
+dd <- read.csv("data/epldata_final.csv")
+```
+
+
+```{r explore and adapt data}
+
+mydd <- dd 
+
+head(mydd)
+
+mydd %>% count(position)
+mydd %>% count(club)
+mydd %>% count(big_club)
+
+class(mydd$fpl_sel)
+
+mydd <- mydd %>% 
+  mutate(fpl_sel = as.character(fpl_sel)) %>% 
+  mutate(fpl_sel = as.numeric(substr(fpl_sel, 1, nchar(fpl_sel)-1)))
+
+mydd <- na.omit(mydd)
+
+# remove ids and duplicate variables
+mydd <- mydd %>% 
+  select(-name, -nationality) %>%
+  select(-position_cat, -age_cat, -club_id, -big_club)
+```
+
+
+```{r split data}
+idx.train <- sample(seq_len(nrow(mydd)), size = nrow(dd)*0.75)
+
+dd.train <- mydd[idx.train, ]
+dd.test <- mydd[-idx.train, ]
+
+```
+
+## Fit Linear Regression
+
+```{r linear regression football}
+fit.linear <- lm(market_value ~ ., data=dd.train)
+fit.linear
+```
+
+```{r performance regression residuals football}
+hist(fit.linear$residuals, breaks = 30) # normally distributed :)
+```
+
+
+
+
+```{r performance regression football}
+pred.linear <- predict(fit.linear, newdata = dd.test)
+
+rmse <- RMSE(pred.linear, dd.test$market_value)
+mse <- MSE(pred.linear, dd.test$market_value)
+
+print (paste0('Linear Regression. RMSE=', round(rmse,2), ', MSE=', round(mse,2)))
+```
+
+## Fit Regularized LR
+
+```{r regularized linear regression football}
+
+x.tr <- model.matrix(market_value ~ ., data = dd.train)[, -1]
+y.tr <- dd.train$market_value
+
+set.seed(10)
+
+fit.lasso <- glmnet(x.tr, y.tr, family="gaussian", alpha=1)
+fit.ridge <- glmnet(x.tr, y.tr, family="gaussian", alpha=0)
+```
+
+**Coefficients of lasso vs ridge**
+
+Lasso coefficients go to zero, ridge don't, they just get small. 
+
+```{r coefficients ridge football}
+coef(fit.ridge, s=0.1)
+```
+
+```{r plot coefficients}
+plot(fit.lasso, xvar = "lambda", label = TRUE)
+plot(fit.ridge, xvar = "lambda", label = TRUE)
+```
+
+
+```{r performance regularized regression football}
+
+x.test <- model.matrix(market_value ~ ., data = dd.test)[, -1]
+y.test <- dd.test$market_value
+
+y.pred.lasso <- predict(fit.lasso, newx = x.test, type = "response", s = 0.1)
+y.pred.ridge <- predict(fit.ridge, newx = x.test, type = "response", s = 0.1)
+
+rmse.lasso <- RMSE(y.pred.lasso, dd.test$market_value)
+mse.lasso <- MSE(y.pred.lasso, dd.test$market_value)
+
+rmse.ridge <- RMSE(y.pred.ridge, dd.test$market_value)
+mse.ridge <- MSE(y.pred.ridge, dd.test$market_value)
+
+print (paste0('Linear Regression. RMSE=', round(rmse,2), ', MSE=', round(mse,2)))
+print (paste0('Lasso. RMSE=', round(rmse.lasso,2), ', MSE=', round(mse.lasso,2)))
+print (paste0('Ridge RMSE=', round(rmse.ridge,2), ', MSE=', round(mse.ridge,2)))
+
+```
+
+**Cross-Validation**
+
+```{r plot cv regularize regression football}
+
+lasso.cv <- cv.glmnet(x.tr, y.tr, alpha = 1) # CV to obtain best lambda
+ridge.cv <- cv.glmnet(x.tr, y.tr, alpha = 0) # CV to obtain best lambda
+
+# dotted vertical lines correspond to optimal lambdas
+plot(lasso.cv)
+plot(ridge.cv)
+
+
+print(lasso.cv$lambda.min)
+print(ridge.cv$lambda.min)
+
+```
+
+```{r performance regularized regression with CV}
+
+x.test <- model.matrix(market_value ~ ., data = dd.test)[, -1]
+y.test <- dd.test$market_value
+
+
+y.pred.lasso <- predict(fit.lasso, newx = x.test, type = "response", s = lasso.cv$lambda.min)
+y.pred.ridge <- predict(fit.ridge, newx = x.test, type = "response", s = ridge.cv$lambda.min)
+
+rmse.lasso <- RMSE(y.pred.lasso, dd.test$market_value)
+mse.lasso <- MSE(y.pred.lasso, dd.test$market_value)
+
+rmse.ridge <- RMSE(y.pred.ridge, dd.test$market_value)
+mse.ridge <- MSE(y.pred.ridge, dd.test$market_value)
+
+print (paste0('Linear Regression. RMSE=', round(rmse,2), ', MSE=', round(mse,2)))
+print (paste0('Lasso optimal. RMSE=', round(rmse.lasso,2), ', MSE=', round(mse.lasso,2)))
+print (paste0('Ridge optimal. RMSE=', round(rmse.ridge,2), ', MSE=', round(mse.ridge,2)))
+
+```
+
+
+
+## The `caret` way. 
+
+`caret` package is a wrap-up for several ML models. It allows to use the same interface (function) for different models, by changing very little parameters. The general signature is 
+
+```
+train(x, y, #or form
+  method="", 
+  preProcess = NULL, metric="", 
+  trControl = trainControl(), tuneGrid = NULL)
+```
+
+* Linear regression: `method='lm'`
+* Regularized linear regression: `method='glmnet'` (requires library `glmnet`)
+* Random forest: `method='rf'`
+* ...
+
+```{r split data caret}
+
+#idx.train <- sample(seq_len(nrow(mydd)), size = nrow(dd)*0.75)
+idx.train <- createDataPartition(mydd$market_value, p = .75, list = FALSE)
+dd.train <- mydd[idx.train,]
+dd.test  <- mydd[-idx.train,]
+
+```
+
+We fit a Linear Regression to compare.
+
+```{r linear regression caret}
+# this does not work
+model.lm <- train (market_value ~ ., data = dd.train, method = "lm")
+model.lm
+```
+
+Now we fit a Regularized linear regression to training data
+
+```{r regularized linear regression caret, eval=FALSE}
+# this does not work
+model.lasso <- train (market_value ~ ., data = dd.train, method = "glmnet", alpha=1)
+model.ridge <- train (market_value ~ ., data = dd.train, method = "glmnet", alpha=0)
+```
+
+Previous chunk does not work because `glmnet` requires a set of `lambdas` to try. So we need to specify the tuneGrid for lambda parameter. 
+
+```{r regularized linear regression caret v2}
+
+lambdaGrid.lasso = expand.grid(alpha = 1, lambda = seq(0.0001, 1, length = 20))
+lambdaGrid.ridge = expand.grid(alpha = 1, lambda = seq(0.0001, 1, length = 20))
+
+model.lasso <- train (market_value ~ ., data = dd.train, 
+                      method = "glmnet", tuneGrid = lambdaGrid.lasso)
+model.lasso
+
+model.ridge <- train (market_value ~ ., data = dd.train, 
+                      method = "glmnet", tuneGrid = lambdaGrid.ridge)
+model.ridge
+```
+
+```{r plot caret glm results}
+plot(model.lasso)
+plot(model.ridge)
+```
+
+```{r caret lasso and ridge together}
+
+lambdaGrid = expand.grid(alpha = 0:1, lambda = seq(0.0001, 1, length = 20))
+
+model.rlr <- train (market_value ~ ., data = dd.train, 
+                      method = "glmnet", tuneGrid = lambdaGrid)
+model.rlr
+plot(model.rlr)
+```

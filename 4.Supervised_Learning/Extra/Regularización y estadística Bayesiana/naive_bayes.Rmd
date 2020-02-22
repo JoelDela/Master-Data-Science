@@ -1,0 +1,112 @@
+---
+title: "Naive Bayes"
+author: "Maria Hernandez"
+output: html_document
+---
+
+
+```{r general libraries, message=FALSE}
+
+library(e1071) #naive bayes
+
+# misc
+library(ggplot2)
+library(dplyr)
+library(caret)
+
+```
+
+
+In this notebook we are going to see how the Naive Bayes method works. We will use a [dataset](https://stats.idre.ucla.edu/stat/data/hsbdemo.dta) from students results of UCLA university. 
+
+```{r load data}
+library(foreign)
+dd <- read.dta('data/hsbdemo.dta')
+```
+
+```{r explore data}
+head(dd)
+```
+
+We want to estimate `prog` from other variables. 
+```{r target}
+ggplot(dd, aes(x=prog)) + geom_bar()
+```
+
+NaiveBayes assumes variable independence, Is that true in this example? Let's plot a correlation matrix. 
+
+```{r correlation matrix}
+library(corrplot)
+
+dd.int <- dd %>% select(read, write, math, science, socst)
+corrplot(cor(dd.int))
+
+```
+
+## Let's do the model
+
+```{r keep data}
+mydd <- dd
+```
+
+```{r split data}
+trainIndex <- createDataPartition(mydd$prog, p=0.7, list = FALSE)
+train <- mydd[trainIndex, ]
+test <- mydd[-trainIndex, ]
+```
+
+
+
+
+```{r nb train}
+nb.model <- naiveBayes(prog ~ science + socst, data=train)
+print(nb.model)
+```
+
+```{r nb test}
+
+pred.train <- predict(nb.model, newdata=train, type="class")
+train.table <- table(train$prog, pred.train)
+
+pred.test <- predict(nb.model, newdata=test, type="class")
+test.table <- table(test$prog, pred.test)
+
+acc.train <- (train.table[1,1]+train.table[2,2]+train.table[3,3])/sum(train.table)
+acc.test <- (test.table[1,1]+test.table[2,2]+test.table[3,3])/sum(test.table)
+
+print("Contingency Table for Training Data")
+print(train.table)
+
+print("Contingency Table for Test Data")
+print(test.table)
+
+print(paste0("Accuracy. Train: ", round(acc.train,3), ", test: ", round(acc.test,3)))
+```
+
+Now we add more regressors
+
+```{r nb ses}
+nb.model2 <- naiveBayes(prog ~ science + socst + ses + female + schtyp, 
+                        data=train)
+
+pred.train <- predict(nb.model2, newdata=train, type="class")
+train.table <- table(train$prog, pred.train)
+
+pred.test <- predict(nb.model2, newdata=test, type="class")
+test.table <- table(test$prog, pred.test)
+
+acc.train <- (train.table[1,1]+train.table[2,2]+train.table[3,3])/sum(train.table)
+acc.test <- (test.table[1,1]+test.table[2,2]+test.table[3,3])/sum(test.table)
+
+# print("Contingency Table for Training Data")
+# print(train.table)
+# 
+# print("Contingency Table for Test Data")
+# print(test.table)
+
+print(paste0("Accuracy. Train: ", round(acc.train,3), ", test: ", round(acc.test,3)))
+```
+
+## The `caret` way
+
+`train(data, method='nb', ...)`
